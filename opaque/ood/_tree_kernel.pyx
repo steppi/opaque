@@ -1,3 +1,20 @@
+""" This extension allows for an ensemble of decision trees trained through
+Sci-kit Learn to be converted into a kernel for use in a random forest.
+For more information on the Random Forest Kernel see 
+"Random Forests and Kernel Methods", Erwan Scornet 2016.
+https://doi.org/10.1109/TIT.2016.2514489
+
+This extension copies internals from the Scikit-learn extension
+sklearn.tree._tree.pyx 
+(https://github.com/scikit-learn/scikit-learn/blob/main/sklearn/tree/_tree.pyx)
+and reassembles them in a way that allows for the kernelization of a list
+of Scikit-learn's decision trees. This file is up to date with Scikit-learn's
+internals as of April 19th 2021. Since we have copied components outside of
+Scikit-learn's public API, it is possible that a Scikit-learn update will cause
+its decision trees to deviate from the assumptions made by the below code. This
+will have to be guarded against with tests.
+"""
+
 import cython
 import numpy as np
 cimport numpy as np
