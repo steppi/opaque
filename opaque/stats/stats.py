@@ -1,31 +1,39 @@
 import logging
-from sklearn.metrics import make_scorer
+import numpy as np
+from typing import Any
+from numpy.typing import ArrayLike
+from sklearn.utils.validation import column_or_1d
 
 
 logger = logging.getLogger(__file__)
 
 
-def true_positives(y_true, y_pred, pos_label=1):
-    return sum(1 if expected == pos_label and predicted == pos_label else 0
-               for expected, predicted in zip(y_true, y_pred))
+def true_positives(y_true: ArrayLike, y_pred: ArrayLike,
+                   pos_label: Any=1) -> float:
+    y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
+    return np.sum((y_true == pos_label) & (y_pred == pos_label))
 
 
-def true_negatives(y_true, y_pred, pos_label=1):
-    return sum(1 if expected != pos_label and predicted != pos_label else 0
-               for expected, predicted in zip(y_true, y_pred))
+def true_negatives(y_true: ArrayLike, y_pred: ArrayLike,
+                   pos_label: Any=1) -> float:
+    y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
+    return np.sum((y_true != pos_label) & (y_pred != pos_label))
 
 
-def false_positives(y_true, y_pred, pos_label=1):
-    return sum(1 if expected != pos_label and predicted == pos_label else 0
-               for expected, predicted in zip(y_true, y_pred))
+def false_positives(y_true: ArrayLike,  y_pred: ArrayLike,
+                    pos_label: Any=1) -> float:
+    y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
+    return np.sum((y_true != pos_label) & (y_pred == pos_label))
 
 
-def false_negatives(y_true, y_pred, pos_label=1):
-    return sum(1 if expected == pos_label and predicted != pos_label else 0
-               for expected, predicted in zip(y_true, y_pred))
+def false_negatives(y_true: ArrayLike, y_pred: ArrayLike,
+                    pos_label: Any=1) -> float:
+    y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
+    return np.sum((y_true == pos_label) & (y_pred != pos_label))
 
 
-def sensitivity_score(y_true, y_pred, pos_label=1):
+def sensitivity_score(y_true: ArrayLike, y_pred: ArrayLike,
+                      pos_label: Any=1) -> float:
     tp = true_positives(y_true, y_pred, pos_label)
     fn = false_negatives(y_true, y_pred, pos_label)
     try:
@@ -36,7 +44,8 @@ def sensitivity_score(y_true, y_pred, pos_label=1):
     return result
 
 
-def specificity_score(y_true, y_pred, pos_label=1):
+def specificity_score(y_true: ArrayLike, y_pred: ArrayLike,
+                      pos_label: Any=1) -> float:
     tn = true_negatives(y_true, y_pred, pos_label)
     fp = false_positives(y_true, y_pred, pos_label)
     try:
@@ -47,16 +56,8 @@ def specificity_score(y_true, y_pred, pos_label=1):
     return result
 
 
-def youdens_j_score(y_true, y_pred, pos_label=1):
+def youdens_j_score(y_true: ArrayLike, y_pred: ArrayLike,
+                    pos_label: Any=1) -> float:
     sens = sensitivity_score(y_true, y_pred, pos_label)
     spec = specificity_score(y_true, y_pred, pos_label)
     return sens + spec - 1
-
-
-def make_anomaly_detector_scorer():
-    sensitivity_scorer = make_scorer(sensitivity_score, pos_label=-1.0)
-    specificity_scorer = make_scorer(specificity_score, pos_label=-1.0)
-    yj_scorer = make_scorer(youdens_j_score, pos_label=-1.0)
-    scorer = {'sens': sensitivity_scorer, 'spec': specificity_scorer,
-              'yj': yj_scorer}
-    return scorer
