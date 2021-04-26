@@ -1,9 +1,6 @@
 import cython
 import numpy as np
-from libc.math cimport pow as cpow
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
-from libc.math cimport fabs, exp, log, log1p, pi, sqrt
-
+from libc.math cimport fabs, exp, sqrt
 
 from scipy.integrate import dblquad
 from scipy.optimize.cython_optimize cimport brentq
