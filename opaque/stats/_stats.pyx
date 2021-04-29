@@ -1,10 +1,22 @@
 import cython
 import numpy as np
-from libc.math cimport fabs, exp, log, sqrt
-
+from numpy.random import PCG64
 from scipy.integrate import dblquad, quad
+
+
+from numpy.random cimport bitgen_t
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from libc.float cimport DBL_MIN
+from libc.math cimport fabs, exp, log, log1p, sqrt, isnan, HUGE_VAL
+from numpy.random.c_distributions cimport random_beta
+from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid
+
 from scipy.optimize.cython_optimize cimport brentq
 from scipy.special.cython_special cimport betainc, betaln, xlog1py, xlogy
+
+
+cdef extern from "stdbool.h":
+    ctypedef bint bool
 
 
 cdef double log_beta_pdf(double theta, double p, double q):
@@ -29,7 +41,7 @@ cdef inline double coefficient(int n, double p, double q, double x):
 
 
 @cython.cdivision(True)
-cdef double K(double p, double q, double x, double tol=1e-20):
+cdef double K(double p, double q, double x, double tol):
     cdef int n
     cdef double delC, C, D
     delC = coefficient(1, p, q, x)
@@ -43,39 +55,57 @@ cdef double K(double p, double q, double x, double tol=1e-20):
     return 1/C
 
 
-cdef double log_betainc(double p, double q, double theta):
+cdef double _log_betainc(double p, double q, double x):
     cdef double output
-    output = xlog1py(q, -theta) + xlogy(p, theta) - log(p)
-    output -= betaln(p, q)
-    output += log(K(p, q, theta))
+    if x <= p/(p + q):
+        output = xlog1py(q, -x) + xlogy(p, x) - log(p)
+        output -= betaln(p, q)
+        output += log(K(p, q, x, 1e-20))
+    else:
+        output = log_diff(0, log_betainc(q, p, 1-x))
     return output
 
 
+def log_betainc(p, q, x):
+    return _log_betainc(p, q, x)
+
+
 cdef double log_diff(double log_p, double log_q):
-    return log_p + exp(log_q - log_p)
+    return log_p + log1p(-exp(log_q - log_p))
 
 
-cdef double prevalence_cdf_exact(double theta, int n, int t,
+cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
+                                     double sensitivity,
+                                     double specificity):
+    cdef double c1, c2, logY
+    c1, c2 = 1 - specificity, sensitivity + specificity - 1
+    logY = log_betainc(t + 1, n - t + 1, c1)
+    if c2 == 0:
+        output = log(theta)
+    elif c1 + c2 >= c1:
+        output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*theta),
+                          logY)
+        output -= log_diff(log_betainc(t + 1, n - t + 1, c1 + c2),
+                           logY)
+    else:
+        output = log_diff(logY,
+                          log_betainc(t + 1, n - t + 1, c1 + c2*theta))
+        output -= log_diff(logY,
+                           log_betainc(t + 1, n - t + 1, c1 + c2))
+    if isnan(output):
+        if t/n < c1:
+            output = -HUGE_VAL if theta == 0.0 else 0.0
+        elif c1 + c2 < t/n:
+            output = 0.0 if theta == 1.0 else -HUGE_VAL
+        else:
+            output = log(theta)
+    return output
+
+
+cdef double prevalence_cdf_fixed(double theta, int n, int t,
                                  double sensitivity,
                                  double specificity):
-    cdef double c1, c2, numerator, denominator
-    c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    if c2 == 0:
-        return theta
-    numerator = (betainc(t + 1, n - t + 1, c1 + c2*theta) -
-                 betainc(t + 1, n - t + 1, c1))
-    denominator = (betainc(t + 1, n - t + 1, c1 + c2) -
-                   betainc(t + 1, n - t + 1, c1))
-    if denominator == 0:
-        if t/n < c1:
-            return 0.0 if theta == 0.0 else 1.0
-        elif t/n > c1 + c2:
-            return 1.0 if theta == 1.0 else 0.0
-        return theta
-    return numerator/denominator
-
-def py_cdf(theta, n, t, sens, spec):
-    return prevalence_cdf_exact(theta, n, t, sens, spec)
+    return exp(log_prevalence_cdf_fixed(theta, n, t, sensitivity, specificity))
 
 
 cdef class Params:
@@ -93,15 +123,15 @@ cdef class Params:
 
 
 def integrand_cdf(double sens, double spec, Params p):
-    return prevalence_cdf_exact(p.theta, p.n, p.t, sens, spec) * \
+    return prevalence_cdf_fixed(p.theta, p.n, p.t, sens, spec) * \
         beta_pdf(sens, p.sens_a, p.sens_b) * \
         beta_pdf(spec, p.spec_a, p.spec_b)
 
 
 @cython.cdivision(True)
-cdef double prevalence_cdf(double theta, int n, int t,
-                                     double sens_a, double sens_b,
-                                     double spec_a, double spec_b):
+cdef double _prevalence_cdf(double theta, int n, int t,
+                            double sens_a, double sens_b,
+                            double spec_a, double spec_b):
     cdef double output, error
     p = Params(theta, n, t, sens_a, sens_b, spec_a, spec_b)
     output, error = dblquad(integrand_cdf, 0, 1, 0, 1, args=(p,),
@@ -114,51 +144,117 @@ cdef double prevalence_cdf(double theta, int n, int t,
         return output
 
 
-def py_prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b):
-    return prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b)
+cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
+                                   double sens_a, double sens_b,
+                                   double spec_a, double spec_b,
+                                   int num_samples):
+    cdef int i
+    cdef bitgen_t *rng
+    cdef const char *capsule_name = "BitGenerator"
+    cdef double result
+    cdef double *sens_array
+    cdef double *spec_array
+
+    sens_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
+    spec_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
+    
+    x = PCG64()
+    capsule = x.capsule
+    if not PyCapsule_IsValid(capsule, capsule_name):
+        raise ValueError("Invalid pointer to anon_func_state")
+    rng = <bitgen_t *> PyCapsule_GetPointer(capsule, capsule_name)
+
+    i = 0
+    with x.lock, nogil:
+        for i in range(num_samples):
+            sens_array[i] = random_beta(rng, sens_a, sens_b)
+            spec_array[i] = random_beta(rng, spec_a, spec_b)
+    result = 0
+    i = 0
+    for i in range(num_samples):
+        result += prevalence_cdf_fixed(theta, n, t, sens_array[i],
+                                       spec_array[i])
+    PyMem_Free(sens_array)
+    PyMem_Free(spec_array)
+    return result/num_samples
+
+
+def prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b,
+                   mc_est=True, num_samples=5000):
+    if mc_est:
+        return _prevalence_cdf_mc_est(theta, n, t, sens_a, sens_b, spec_a, spec_b,
+                                      num_samples)
+    else:
+        return _prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b)
 
 
 ctypedef struct inverse_cdf_params:
     int n
     int t
+    int num_samples
     double sens_a
     double sens_b
     double spec_a
     double spec_b
     double val
+    bint mc_est
 
 
 @cython.cdivision(True)
-cdef double f(double theta, void *args):
+cdef double f1(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
-    return prevalence_cdf(theta, params.n, params.t,
-                          params.sens_a, params.sens_b,
-                          params.spec_a, params.spec_b) - params.val
+    return _prevalence_cdf(theta, params.n, params.t,
+                           params.sens_a, params.sens_b,
+                           params.spec_a, params.spec_b) - params.val
 
 
-cdef double inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
-                        double spec_a, double spec_b):
+@cython.cdivision(True)
+cdef double f2(double theta, void *args):
+    cdef inverse_cdf_params *params = <inverse_cdf_params *> args
+    return _prevalence_cdf_mc_est(theta, params.n, params.t,
+                                  params.sens_a, params.sens_b,
+                                  params.spec_a, params.spec_b,
+                                  params.num_samples) - params.val
+
+
+ctypedef double (*function_1d)(double, void*)
+
+
+cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
+                         double spec_a, double spec_b, int num_samples,
+                         function_1d func):
     cdef inverse_cdf_params args
     args.n, args.t = n, t
+    args.num_samples = num_samples
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = x
-    return brentq(f, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
+    return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
+
+def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
+                num_samples=5000):
+    if mc_est:
+        return _inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
+                            num_samples, f2)
+    else:
+        return _inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
+                            num_samples, f1)
+        
 
 cdef double interval_width(double x, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
     cdef double left, right
-    left = inverse_cdf(x, params.n, params.t,
-                       params.sens_a, params.sens_b,
-                       params.spec_a, params.spec_b)
-    right = inverse_cdf(x + params.val, params.n, params.t,
+    func = f2 if params.mc_est else f1
+    left = _inverse_cdf(x, params.n, params.t,
                         params.sens_a, params.sens_b,
-                        params.spec_a, params.spec_b)
+                        params.spec_a, params.spec_b,
+                        params.num_samples, func)
+    right = _inverse_cdf(x + params.val, params.n, params.t,
+                         params.sens_a, params.sens_b,
+                         params.spec_a, params.spec_b,
+                         params.num_samples, func)
     return right - left
-
-
-ctypedef double (*function_1d)(double, void*)
 
 
 cdef (double, double) golden_section_search(function_1d func, double left,
@@ -195,7 +291,9 @@ cdef (double, double) golden_section_search(function_1d func, double left,
             func_at_x3 = func(x3, args)
 
 
-def highest_density_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha):
+def highest_density_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1,
+                             mc_est=True,
+                             num_samples=5000):
     cdef double left, right
     cdef double argmin, min_
     cdef inverse_cdf_params args
@@ -203,14 +301,21 @@ def highest_density_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha):
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = 1 - alpha
-
+    args.mc_est = mc_est
+    func = f2 if mc_est else f1
+    args.num_samples = num_samples
     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
                                                     1e-3, 1e-3, &args)
-    left = inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b)
+    left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
+                        num_samples, func)
     right = left + min_width
     return (max(0.0, left), min(right, 1.0))
 
 
-def equal_tailed_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha):
-    return (inverse_cdf(alpha/2, n, t, sens_a, sens_b, spec_a, spec_b),
-            inverse_cdf(1 - alpha/2, n, t, sens_a, sens_b, spec_a, spec_b))
+def equal_tailed_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1,
+                          mc_est=True, num_samples=5000):
+    func = f2 if mc_est else f1
+    return (_inverse_cdf(alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
+                         num_samples, func),
+            _inverse_cdf(1 - alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
+                         num_samples, func))
