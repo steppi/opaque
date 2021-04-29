@@ -57,7 +57,11 @@ cdef inline double coefficient(int n, double p, double q, double x):
 
 @cython.cdivision(True)
 cdef double K(double p, double q, double x, double tol):
-    """Returns hyp2f1(p + q, 1, p + 1, x)"""
+    """Returns hyp2f1(p + q, 1, p + 1, x)
+
+    Evaluates continued fraction in top down fashion using Lentz's
+    algorithm.
+    """
     cdef int n
     cdef double delC, C, D
     delC = coefficient(1, p, q, x)
@@ -225,8 +229,8 @@ cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
 
 def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
                    float spec_a, float spec_b, mc_est: bool=True,
-                   num_mc_samples: int=5000) -> tuple[float, float]:
-    """Returns prevalence_cdf as derived in Diggle, 2011.
+                   num_mc_samples: int=5000) -> float:
+    """Returns prevalence_cdf as derived in Diggle, 2011 [0].
 
     Parameters
     ----------
@@ -237,13 +241,13 @@ def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
     t : int
         Number of positives out of all samples.
     sens_a : float
-        First shape parameter of beta prior for sensitivity
+        First shape parameter of beta prior for sensitivity.
     sens_b : float
-        Second shape parameter of beta prior for sensitivity
+        Second shape parameter of beta prior for sensitivity.
     spec_a : float
-        First shape parameter of beta prior for specificity
+        First shape parameter of beta prior for specificity.
     spec_b : float
-        Second shape parameter of beta prior for specificity
+        Second shape parameter of beta prior for specificity.
     mc_est : Optional[bool]
        If True, calculate integral for marginalization over priors using
        importance sampling Monte-carlo. Otherwise use scipy's dblquad to
@@ -260,7 +264,7 @@ def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
 
     References
     ----------
-    [1] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
         Epidemiology Research International, vol. 2011, Article ID 608719,
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
@@ -274,7 +278,7 @@ def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
 ctypedef struct inverse_cdf_params:
     int n
     int t
-    int num_samples
+    int num_mc_samples
     double sens_a
     double sens_b
     double spec_a
@@ -297,28 +301,31 @@ cdef double f2(double theta, void *args):
     return _prevalence_cdf_mc_est(theta, params.n, params.t,
                                   params.sens_a, params.sens_b,
                                   params.spec_a, params.spec_b,
-                                  params.num_samples) - params.val
+                                  params.num_mc_samples) - params.val
 
 
 ctypedef double (*function_1d)(double, void*)
 
 
 cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
-                         double spec_a, double spec_b, int num_samples,
+                         double spec_a, double spec_b, int num_mc_samples,
                          function_1d func):
     cdef inverse_cdf_params args
     args.n, args.t = n, t
-    args.num_samples = num_samples
+    args.num_mc_samples = num_mc_samples
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = x
     return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
 
-def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
-                num_mc_samples=5000):
+def inverse_prevalence_cdf(x: float, n: int, t: int, sens_a: float,
+                           sens_b: float, spec_a: float, spec_b: float,
+                           mc_est: bool=True,
+                           num_mc_samples: int=5000) -> float:
     """Returns inverse of prevalence cdf evaluated at x for param values
 
+    As derived in Diggle 2011 [0].
     Uses scipy's brentq root finding algorithm to calculate inverse cdf
     by solving prevalence_cdf(theta, ...) = x for theta.
 
@@ -331,13 +338,13 @@ def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
     t : int
         Number of positives out of all samples.
     sens_a : float
-        First shape parameter of beta prior for sensitivity
+        First shape parameter of beta prior for sensitivity.
     sens_b : float
-        Second shape parameter of beta prior for sensitivity
+        Second shape parameter of beta prior for sensitivity.
     spec_a : float
-        First shape parameter of beta prior for specificity
+        First shape parameter of beta prior for specificity.
     spec_b : float
-        Second shape parameter of beta prior for specificity
+        Second shape parameter of beta prior for specificity.
     mc_est : Optional[bool]
        If True, calculate integral for marginalization over priors using
        importance sampling Monte-carlo. Otherwise use scipy's dblquad to
@@ -354,7 +361,7 @@ def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
 
     References
     ----------
-    [1] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
         Epidemiology Research International, vol. 2011, Article ID 608719,
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
@@ -367,17 +374,22 @@ def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
         
 
 cdef double interval_width(double x, void *args):
+    """Helper function for confidence interval calcuation.
+
+    Computes width of interval cutting off probability val (which lives in
+    the args), such that the left tail of the interval cuts off probability x.
+    """
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
     cdef double left, right
     func = f2 if params.mc_est else f1
     left = _inverse_cdf(x, params.n, params.t,
                         params.sens_a, params.sens_b,
                         params.spec_a, params.spec_b,
-                        params.num_samples, func)
+                        params.num_mc_samples, func)
     right = _inverse_cdf(x + params.val, params.n, params.t,
                          params.sens_a, params.sens_b,
                          params.spec_a, params.spec_b,
-                         params.num_samples, func)
+                         params.num_mc_samples, func)
     return right - left
 
 
@@ -388,8 +400,9 @@ cdef (double, double) golden_section_search(function_1d func, double left,
     """Returns a minimum obtained by func over the interval (left, right)
 
     Returns the minimum value of f(x), contrary to the typical practice
-    of returning the value x at which the minimum is obtained. Guaranteed
-    to be a global minimum if f is unimodal.
+    of returning the value x at which the minimum is obtained. This is
+    because in our use case, f is expensive to evaluate and we do not
+    need the arg min. Guaranteed to be a global minimum if f is unimodal.
     """
     cdef double x1, x2, x3, x4
     cdef double func_at_x2, func_at_x3
@@ -415,9 +428,54 @@ cdef (double, double) golden_section_search(function_1d func, double left,
             func_at_x3 = func(x3, args)
 
 
-def highest_density_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1,
-                             mc_est=True,
-                             num_samples=5000):
+def highest_density_interval(n: int, t: int, sens_a: float, sens_b: float,
+                             spec_a: float, spec_b: float, alpha: float=0.1,
+                             mc_est: bool=True,
+                             num_mc_samples: int=5000) -> tuple[float, float]:
+    """Returns highest density prevalence credible interval [1].
+
+    Interval of posterior distribution of minimal width that captures
+    probability 1 - alpha.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples on which diagnostic test has been run.
+    t : int
+        Number of positives out of all samples.
+    sens_a : float
+        First shape parameter of beta prior for sensitivity.
+    sens_b : float
+        Second shape parameter of beta prior for sensitivity.
+    spec_a : float
+        First shape parameter of beta prior for specificity.
+    spec_b : float
+        Second shape parameter of beta prior for specificity.
+    alpha : float
+        Significance level. Interval of posterior accounts for
+        probability 1 - alpha.
+    mc_est : Optional[bool]
+       If True, calculate integral for marginalization over priors using
+       importance sampling Monte-carlo. Otherwise use scipy's dblquad to
+       calculate the integral. Using dblquad is more accurate but can behave
+       poorly and take an excessive amount of time due to convergence issues
+       for some values of the parameters.
+    num_mc_samples : Optional[int]
+       Number of samples to take when importance sampling if mc_est = True.
+
+    Returns
+    -------
+    tuple[float, float]
+        tuple(left, right) where left, and right are the endpoints of the
+        prevalence credible interval.
+
+    References
+    ----------
+    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+        Epidemiology Research International, vol. 2011, Article ID 608719,
+        5 pages, 2011. https://doi.org/10.1155/2011/608719
+    [1] https://en.wikipedia.org/wiki/Credible_interval
+    """
     cdef double left, right
     cdef double argmin, min_
     cdef inverse_cdf_params args
@@ -427,19 +485,65 @@ def highest_density_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1,
     args.val = 1 - alpha
     args.mc_est = mc_est
     func = f2 if mc_est else f1
-    args.num_samples = num_samples
+    args.num_mc_samples = num_mc_samples
     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
                                                     1e-3, 1e-3, &args)
     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
-                        num_samples, func)
+                        num_mc_samples, func)
     right = left + min_width
     return (max(0.0, left), min(right, 1.0))
 
 
-def equal_tailed_interval(n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1,
-                          mc_est=True, num_samples=5000):
+def equal_tailed_interval(n: int, t: int, sens_a: float, sens_b: float,
+                          spec_a: float, spec_b: float, alpha: float=0.1,
+                          mc_est: bool=True, num_mc_samples: int=5000):
+    """Returns equal tailed prevalence credible interval [1].
+
+    Interval of posterior distribution (left, right) such that
+    the left and right tails [0, left] and [right, 1] each capture
+    probability 1 - alpha/2.
+
+    Parameters
+    ----------
+    n : int
+        Number of samples on which diagnostic test has been run.
+    t : int
+        Number of positives out of all samples.
+    sens_a : float
+        First shape parameter of beta prior for sensitivity.
+    sens_b : float
+        Second shape parameter of beta prior for sensitivity.
+    spec_a : float
+        First shape parameter of beta prior for specificity.
+    spec_b : float
+        Second shape parameter of beta prior for specificity.
+    alpha : float
+        Significance level. Interval of posterior accounts for
+        probability 1 - alpha.
+    mc_est : Optional[bool]
+       If True, calculate integral for marginalization over priors using
+       importance sampling Monte-carlo. Otherwise use scipy's dblquad to
+       calculate the integral. Using dblquad is more accurate but can behave
+       poorly and take an excessive amount of time due to convergence issues
+       for some values of the parameters.
+    num_mc_samples : Optional[int]
+       Number of samples to take when importance sampling if mc_est = True.
+
+    Returns
+    -------
+    tuple[float, float]
+        tuple(left, right) where left, and right are the endpoints of the
+        prevalence credible interval.
+
+    References
+    ----------
+    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+        Epidemiology Research International, vol. 2011, Article ID 608719,
+        5 pages, 2011. https://doi.org/10.1155/2011/608719
+    [1] https://en.wikipedia.org/wiki/Credible_interval
+    """
     func = f2 if mc_est else f1
     return (_inverse_cdf(alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
-                         num_samples, func),
+                         num_mc_samples, func),
             _inverse_cdf(1 - alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
-                         num_samples, func))
+                         num_mc_samples, func))
