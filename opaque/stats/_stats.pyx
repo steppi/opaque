@@ -3,12 +3,13 @@ import numpy as np
 from numpy.random import PCG64
 from scipy.integrate import dblquad, quad
 
-
 from numpy.random cimport bitgen_t
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from numpy.random.c_distributions cimport random_beta
+
 from libc.float cimport DBL_MIN
 from libc.math cimport fabs, exp, log, log1p, sqrt, isnan, HUGE_VAL
-from numpy.random.c_distributions cimport random_beta
+
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid
 
 from scipy.optimize.cython_optimize cimport brentq
@@ -20,6 +21,11 @@ cdef extern from "stdbool.h":
 
 
 cdef double log_beta_pdf(double theta, double p, double q):
+    """Returns log of pdf of beta distribution.
+
+    theta should be a double in the range [0, 1]. p and q are
+    the shape parameters of the beta distribution.
+    """
     cdef double output
     output = xlog1py(q - 1.0, -theta) + xlogy(p - 1.0, theta)
     output -= betaln(p, q)
@@ -27,11 +33,20 @@ cdef double log_beta_pdf(double theta, double p, double q):
 
 
 cdef double beta_pdf(double theta, double p, double q):
+    """Returns pdf of beta distribution
+
+    theta should be a double in the range [0, 1]. p and q are
+    the shape parameters of the beta distribution.
+    """
     return exp(log_beta_pdf(theta, p, q))
 
 
 @cython.cdivision(True)
 cdef inline double coefficient(int n, double p, double q, double x):
+    """Return nth term of continued fraction expansion used in betainc calc
+    
+    Continued fraction expansion is for hyp2f1(p + q, 1, p + 1, x)
+    """
     cdef int m
     m = n // 2
     if n % 2 == 0:
@@ -42,6 +57,7 @@ cdef inline double coefficient(int n, double p, double q, double x):
 
 @cython.cdivision(True)
 cdef double K(double p, double q, double x, double tol):
+    """Returns hyp2f1(p + q, 1, p + 1, x)"""
     cdef int n
     cdef double delC, C, D
     delC = coefficient(1, p, q, x)
@@ -56,6 +72,7 @@ cdef double K(double p, double q, double x, double tol):
 
 
 cdef double _log_betainc(double p, double q, double x):
+    """Returns log of incomplete beta function."""
     cdef double output
     if x <= p/(p + q):
         output = xlog1py(q, -x) + xlogy(p, x) - log(p)
@@ -66,17 +83,35 @@ cdef double _log_betainc(double p, double q, double x):
     return output
 
 
-def log_betainc(p, q, x):
+def log_betainc(p: float, q: float, x: float) -> float:
+    """Returns log of incomplete beta function.
+
+    Parameters
+    ----------
+    p : float
+        First shape parameter for beta distribution
+    q : float
+        Second shape parameter for beta distribution
+    x : float
+        Argument of incomplete beta function. (Evaluate integral of beta pdf
+        from 0 to x)
+
+    Returns
+    -------
+    float
+    """
     return _log_betainc(p, q, x)
 
 
 cdef double log_diff(double log_p, double log_q):
+    """Returns log(p - q) given log(p) = log_p and log(q) = log_q."""
     return log_p + log1p(-exp(log_q - log_p))
 
 
 cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
                                      double sensitivity,
                                      double specificity):
+    """Returns log of prevalence cdf for fixed sensitivity and specificity."""
     cdef double c1, c2, logY
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
     logY = log_betainc(t + 1, n - t + 1, c1)
@@ -105,10 +140,16 @@ cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
 cdef double prevalence_cdf_fixed(double theta, int n, int t,
                                  double sensitivity,
                                  double specificity):
+    """Returns prevalence_cdf for fixed sensitivity and specificity."""
     return exp(log_prevalence_cdf_fixed(theta, n, t, sensitivity, specificity))
 
 
 cdef class Params:
+    """Parameters to pass to scipy.integrate dblquad
+
+    Integration is used to marginalize prevalence cdf over priors for
+    sensitivity and specificity.
+    """
     cdef public int n, t
     cdef public double theta, sens_a, sens_b, spec_a, spec_b
     
@@ -123,6 +164,7 @@ cdef class Params:
 
 
 def integrand_cdf(double sens, double spec, Params p):
+    """Integrand for marginalization."""
     return prevalence_cdf_fixed(p.theta, p.n, p.t, sens, spec) * \
         beta_pdf(sens, p.sens_a, p.sens_b) * \
         beta_pdf(spec, p.spec_a, p.spec_b)
@@ -132,6 +174,7 @@ def integrand_cdf(double sens, double spec, Params p):
 cdef double _prevalence_cdf(double theta, int n, int t,
                             double sens_a, double sens_b,
                             double spec_a, double spec_b):
+    """Compute marginalization integral with quadrature."""
     cdef double output, error
     p = Params(theta, n, t, sens_a, sens_b, spec_a, spec_b)
     output, error = dblquad(integrand_cdf, 0, 1, 0, 1, args=(p,),
@@ -148,6 +191,7 @@ cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
                                    double sens_a, double sens_b,
                                    double spec_a, double spec_b,
                                    int num_samples):
+    """Computes marginalization integral with importance sampling."""
     cdef int i
     cdef bitgen_t *rng
     cdef const char *capsule_name = "BitGenerator"
@@ -179,11 +223,50 @@ cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
     return result/num_samples
 
 
-def prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b,
-                   mc_est=True, num_samples=5000):
+def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
+                   float spec_a, float spec_b, mc_est: bool=True,
+                   num_mc_samples: int=5000) -> tuple[float, float]:
+    """Returns prevalence_cdf as derived in Diggle, 2011.
+
+    Parameters
+    ----------
+    theta : float
+        Value of prevalence at which to calculate cdf.
+    n : int
+        Number of samples on which diagnostic test has been run.
+    t : int
+        Number of positives out of all samples.
+    sens_a : float
+        First shape parameter of beta prior for sensitivity
+    sens_b : float
+        Second shape parameter of beta prior for sensitivity
+    spec_a : float
+        First shape parameter of beta prior for specificity
+    spec_b : float
+        Second shape parameter of beta prior for specificity
+    mc_est : Optional[bool]
+       If True, calculate integral for marginalization over priors using
+       importance sampling Monte-carlo. Otherwise use scipy's dblquad to
+       calculate the integral. Using dblquad is more accurate but can behave
+       poorly and take an excessive amount of time due to convergence issues
+       for some values of the parameters.
+    num_mc_samples : Optional[int]
+       Number of samples to take when importance sampling if mc_est = True.
+
+    Returns
+    -------
+    float
+        Value of cdf at theta for given parameters.
+
+    References
+    ----------
+    [1] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+        Epidemiology Research International, vol. 2011, Article ID 608719,
+        5 pages, 2011. https://doi.org/10.1155/2011/608719
+    """
     if mc_est:
         return _prevalence_cdf_mc_est(theta, n, t, sens_a, sens_b, spec_a, spec_b,
-                                      num_samples)
+                                      num_mc_samples)
     else:
         return _prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b)
 
@@ -233,13 +316,54 @@ cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
 
 
 def inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b, mc_est=True,
-                num_samples=5000):
+                num_mc_samples=5000):
+    """Returns inverse of prevalence cdf evaluated at x for param values
+
+    Uses scipy's brentq root finding algorithm to calculate inverse cdf
+    by solving prevalence_cdf(theta, ...) = x for theta.
+
+    Parameters
+    ----------
+    x : float
+        Probability value at which to calculate inverse cdf.
+    n : int
+        Number of samples on which diagnostic test has been run.
+    t : int
+        Number of positives out of all samples.
+    sens_a : float
+        First shape parameter of beta prior for sensitivity
+    sens_b : float
+        Second shape parameter of beta prior for sensitivity
+    spec_a : float
+        First shape parameter of beta prior for specificity
+    spec_b : float
+        Second shape parameter of beta prior for specificity
+    mc_est : Optional[bool]
+       If True, calculate integral for marginalization over priors using
+       importance sampling Monte-carlo. Otherwise use scipy's dblquad to
+       calculate the integral. Using dblquad is more accurate but can behave
+       poorly and take an excessive amount of time due to convergence issues
+       for some values of the parameters.
+    num_mc_samples : Optional[int]
+       Number of samples to take when importance sampling if mc_est = True.
+
+    Returns
+    -------
+    float
+        Value of inverse cdf at x for given parameters.
+
+    References
+    ----------
+    [1] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+        Epidemiology Research International, vol. 2011, Article ID 608719,
+        5 pages, 2011. https://doi.org/10.1155/2011/608719
+    """
     if mc_est:
         return _inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
-                            num_samples, f2)
+                            num_mc_samples, f2)
     else:
         return _inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
-                            num_samples, f1)
+                            num_mc_samples, f1)
         
 
 cdef double interval_width(double x, void *args):
