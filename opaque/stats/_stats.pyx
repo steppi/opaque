@@ -1,17 +1,58 @@
 import cython
 import numpy as np
-from libc.math cimport fabs, exp, sqrt
+from libc.math cimport fabs, exp, log, sqrt
 
-from scipy.integrate import dblquad
+from scipy.integrate import dblquad, quad
 from scipy.optimize.cython_optimize cimport brentq
 from scipy.special.cython_special cimport betainc, betaln, xlog1py, xlogy
 
 
+cdef double log_beta_pdf(double theta, double p, double q):
+    cdef double output
+    output = xlog1py(q - 1.0, -theta) + xlogy(p - 1.0, theta)
+    output -= betaln(p, q)
+    return output
+
+
 cdef double beta_pdf(double theta, double p, double q):
-    cdef double exponent
-    exponent = xlog1py(q - 1.0, -theta) + xlogy(p - 1.0, theta)
-    exponent -= betaln(p, q)
-    return exp(exponent)
+    return exp(log_beta_pdf(theta, p, q))
+
+
+@cython.cdivision(True)
+cdef inline double coefficient(int n, double p, double q, double x):
+    cdef int m
+    m = n // 2
+    if n % 2 == 0:
+        return m*(q-m)/((p+2*m-1)*(p+2*m)) * x
+    else:
+        return -(p+m)*(p+q+m)/((p+2*m)*(p+2*m+1)) * x
+
+
+@cython.cdivision(True)
+cdef double K(double p, double q, double x, double tol=1e-20):
+    cdef int n
+    cdef double delC, C, D
+    delC = coefficient(1, p, q, x)
+    C, D = 1 + delC, 1
+    n = 2
+    while fabs(delC) > tol:
+        D = 1/(D*coefficient(n, p, q, x) + 1)
+        delC *= (D - 1)
+        C += delC
+        n += 1
+    return 1/C
+
+
+cdef double log_betainc(double p, double q, double theta):
+    cdef double output
+    output = xlog1py(q, -theta) + xlogy(p, theta) - log(p)
+    output -= betaln(p, q)
+    output += log(K(p, q, theta))
+    return output
+
+
+cdef double log_diff(double log_p, double log_q):
+    return log_p + exp(log_q - log_p)
 
 
 cdef double prevalence_cdf_exact(double theta, int n, int t,
@@ -19,11 +60,22 @@ cdef double prevalence_cdf_exact(double theta, int n, int t,
                                  double specificity):
     cdef double c1, c2, numerator, denominator
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    numerator = (betainc(t+1, n-t+1, c1 + c2*theta) - betainc(t+1, n-t+1, c1))
-    denominator = betainc(t+1, n-t+1, c1 + c2) - betainc(t+1, n-t+1, c1)
+    if c2 == 0:
+        return theta
+    numerator = (betainc(t + 1, n - t + 1, c1 + c2*theta) -
+                 betainc(t + 1, n - t + 1, c1))
+    denominator = (betainc(t + 1, n - t + 1, c1 + c2) -
+                   betainc(t + 1, n - t + 1, c1))
     if denominator == 0:
+        if t/n < c1:
+            return 0.0 if theta == 0.0 else 1.0
+        elif t/n > c1 + c2:
+            return 1.0 if theta == 1.0 else 0.0
         return theta
     return numerator/denominator
+
+def py_cdf(theta, n, t, sens, spec):
+    return prevalence_cdf_exact(theta, n, t, sens, spec)
 
 
 cdef class Params:
@@ -40,17 +92,30 @@ cdef class Params:
         self.spec_b = spec_b
 
 
-def integrand(double sens, double spec, Params p):
+def integrand_cdf(double sens, double spec, Params p):
     return prevalence_cdf_exact(p.theta, p.n, p.t, sens, spec) * \
         beta_pdf(sens, p.sens_a, p.sens_b) * \
         beta_pdf(spec, p.spec_a, p.spec_b)
-            
-        
+
+
+@cython.cdivision(True)
 cdef double prevalence_cdf(double theta, int n, int t,
-                           double sens_a, double sens_b,
-                           double spec_a, double spec_b):
+                                     double sens_a, double sens_b,
+                                     double spec_a, double spec_b):
+    cdef double output, error
     p = Params(theta, n, t, sens_a, sens_b, spec_a, spec_b)
-    return dblquad(integrand, 0, 1, 0, 1, args=(p,))[0]
+    output, error = dblquad(integrand_cdf, 0, 1, 0, 1, args=(p,),
+                            epsabs=1e-3, epsrel=1e-3)
+    if output < 0.0:
+        return 0.0
+    elif output > 1.0:
+        return 1.0
+    else:
+        return output
+
+
+def py_prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b):
+    return prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b)
 
 
 ctypedef struct inverse_cdf_params:
