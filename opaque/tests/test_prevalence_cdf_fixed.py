@@ -39,19 +39,20 @@ def simulation(sensitivity, specificity, n_trials=1000, samples_per_trial=100,
 @pytest.fixture(scope='session')
 def simulation1():
     sens, spec = 0.8, 0.7
-    return sens, spec, simulation(sens, spec, seed=561)
+    return sens, spec, simulation(sens, spec, samples_per_trial=20, seed=561)
 
 
 @pytest.fixture(scope='session')
 def simulation2():
     sens, spec = 0.7, 0.8
-    return sens, spec, simulation(sens, spec, seed=1105)
+    return sens, spec, simulation(sens, spec, samples_per_trial=100, seed=1105)
 
 
 @pytest.fixture(scope='session')
 def simulation3():
     sens, spec = 0.6, 0.9
-    return (sens, spec, simulation(sens, spec, seed=1729))
+    return (sens, spec, simulation(sens, spec, samples_per_trial=1000,
+                                   seed=1729))
 
 
 def get_mae_for_test(n, t, sens, spec, results):
@@ -67,7 +68,7 @@ def get_mae_for_test(n, t, sens, spec, results):
 
 
 @pytest.mark.parametrize('test_input',
-                         [(100, t) for t in range(20, 81)])
+                         [(20, t) for t in range(5, 16)])
 def test_prevalence_cdf_fixed_sim1(test_input, simulation1):
     n, t = test_input
     sens, spec, results = simulation1
@@ -87,7 +88,7 @@ def test_prevalence_cdf_fixed_sim2(test_input, simulation2):
 
 
 @pytest.mark.parametrize('test_input',
-                         [(100, t) for t in range(20, 81)])
+                         [(1000, t) for t in range(200, 801)])
 def test_prevalence_cdf_fixed_sim3(test_input, simulation3):
     n, t = test_input
     sens, spec, results = simulation3
