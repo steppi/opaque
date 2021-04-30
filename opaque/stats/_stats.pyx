@@ -149,11 +149,15 @@ cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
     return output
 
 
-cdef double prevalence_cdf_fixed(double theta, int n, int t,
-                                 double sensitivity,
-                                 double specificity):
+cdef double _prevalence_cdf_fixed(double theta, int n, int t,
+                                  double sensitivity,
+                                  double specificity):
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
     return exp(log_prevalence_cdf_fixed(theta, n, t, sensitivity, specificity))
+
+
+def prevalence_cdf_fixed(theta, n, t, sensitivity, specificity):
+    return _prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
 cdef class Params:
