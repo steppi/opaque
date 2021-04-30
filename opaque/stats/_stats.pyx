@@ -63,15 +63,23 @@ cdef double K(double p, double q, double x, double tol):
     algorithm.
     """
     cdef int n
-    cdef double delC, C, D
+    cdef double delC, C, D, upper, lower
+
     delC = coefficient(1, p, q, x)
     C, D = 1 + delC, 1
+    upper, lower = HUGE_VAL, -HUGE_VAL
     n = 2
-    while fabs(delC) > tol:
+    while upper - lower > tol:
         D = 1/(D*coefficient(n, p, q, x) + 1)
         delC *= (D - 1)
         C += delC
         n += 1
+        if n % 4 == 0 or n % 4 == 1:
+            # nth convergent < true value if n % 4 is 0 or 1
+            lower = 1/C
+        else:
+            # nth convergent > true value if n % 4 is 1 or 2
+            upper = 1/C
     return 1/C
 
 
