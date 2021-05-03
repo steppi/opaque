@@ -1,3 +1,4 @@
+
 import cython
 import numpy as np
 from numpy.random import PCG64
@@ -6,7 +7,7 @@ from scipy.integrate import dblquad, quad
 from numpy.random cimport bitgen_t
 from numpy.random.c_distributions cimport random_beta
 
-from libc.float cimport DBL_MIN
+from libc.float cimport DBL_MIN, DBL_MAX
 from libc.math cimport fabs, exp, log, log1p, sqrt, isnan, HUGE_VAL
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
@@ -115,6 +116,13 @@ def log_betainc(p: float, q: float, x: float) -> float:
     return _log_betainc(p, q, x)
 
 
+cdef double log_sum(double log_p, double log_q):
+    """Returns log(p + q) given log(p) = log_p and log(q) = log_q."""
+    if log_p < log_q:
+        log_p, log_q = log_q, log_p
+    return log_p + log1p(exp(log_q - log_p))
+
+
 cdef double log_diff(double log_p, double log_q):
     """Returns log(p - q) given log(p) = log_p and log(q) = log_q."""
     return log_p + log1p(-exp(log_q - log_p))
@@ -124,28 +132,24 @@ cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
                                      double sensitivity,
                                      double specificity):
     """Returns log of prevalence cdf for fixed sensitivity and specificity."""
-    cdef double c1, c2, logY
+    cdef bool anti_test
+    cdef double c1, c2, logY, log_delta
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
     logY = log_betainc(t + 1, n - t + 1, c1)
-    if c2 == 0:
-        output = log(theta)
-    elif c1 + c2 >= c1:
-        output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*theta),
-                          logY)
-        output -= log_diff(log_betainc(t + 1, n - t + 1, c1 + c2),
-                           logY)
-    else:
-        output = log_diff(logY,
-                          log_betainc(t + 1, n - t + 1, c1 + c2*theta))
-        output -= log_diff(logY,
-                           log_betainc(t + 1, n - t + 1, c1 + c2))
-    if isnan(output):
-        if t/n < c1:
-            output = -HUGE_VAL if theta == 0.0 else 0.0
-        elif c1 + c2 < t/n:
-            output = 0.0 if theta == 1.0 else -HUGE_VAL
-        else:
-            output = log(theta)
+    anti_test = False
+    if c2 < 0:
+        c1, c2 = 1 - c1, -c2
+        anti_test = True
+    output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*theta),
+                      logY)
+    # I'll have to put comments explaining everything later
+    if output < -DBL_MAX:
+        log_delta = log_beta_pdf(t + 1, n - t + 1, c1)
+        if log_delta < -DBL_MAX:
+            return log(theta)
+        return log_sum(log_delta + log(theta), logY)
+    output -= log_diff(log_betainc(t + 1, n - t + 1, c1 + c2),
+                       logY)
     return output
 
 
