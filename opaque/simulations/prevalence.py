@@ -19,26 +19,31 @@ class PrevalenceSimulation(object):
         self.num_grid_points = num_grid_points
         self.samples_per_trial = samples_per_trial
         self.random_state = np.random.RandomState(seed)
-
+        info_dict = {}
         if isinstance(sensitivity, float):
-            self.sensitivity_sampler = lambda: sensitivity
+            self.sample_sens = lambda: sensitivity
+            info_dict['sensitivity'] = sensitivity
         else:
             sens_a, sens_b = sensitivity
             sens_prior = beta(sens_a, sens_b)
             sens_prior.random_state = self.random_state
+            info_dict['sens_prior'] = [sens_a, sens_b]
             def sample_sens():
                 return sens_prior.rvs()
             self.sample_sens = sample_sens
 
         if isinstance(specificity, float):
             self.sample_spec = lambda: specificity
+            info_dict['specificity'] = specificity
         else:
             spec_a, spec_b = specificity
             spec_prior = beta(spec_a, spec_b)
             spec_prior.random_state = self.random_state
+            info_dict['spec_prior'] = [spec_a, spec_b]
             def sample_spec():
                 return spec_prior.rvs()
             self.sample_spec = sample_spec
+        self.info_dict = info_dict
 
     def sample_sens_spec(self):
         return self.sample_sens(), self.sample_spec()
@@ -56,11 +61,13 @@ class PrevalenceSimulation(object):
         aggregate_results = {(n, t): ECDF(theta_list) for
                              (n, t), theta_list in aggregate_results.items()}
         self.aggregate_results = aggregate_results
+        self.info_dict['n_trials'] = n_trials
 
     def get_results_dict(self, num_grid_points=100):
         x = np.linspace(0, 1, num_grid_points)
-        return {(n, t): ecdf(x).tolist() for (n, t), ecdf in
-                self.aggregate_results.items()}
+        return {'results': {f'{n}:{t}': ecdf(x).tolist() for (n, t), ecdf in
+                            self.aggregate_results.items()},
+                'info': self.info_dict}
 
 
 def _run_trial_for_theta(theta, sensitivity, specificity,
