@@ -55,5 +55,7 @@ setup(name='opaque',
           'Programming Language :: Python :: 3.9'
       ],
       packages=find_packages(),
+      install_requires=['cython', 'scikit-learn'],
+      extras_require={'test': ['pytest']},
       ext_modules=extensions,
       include_package_data=True)
