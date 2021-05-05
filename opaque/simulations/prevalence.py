@@ -20,6 +20,7 @@ class PrevalenceSimulation(object):
         self.samples_per_trial = samples_per_trial
         self.random_state = np.random.RandomState(seed)
         info_dict = {}
+        info_dict['num_grid_points'] = num_grid_points
         if isinstance(sensitivity, float):
             self.sample_sens = lambda: sensitivity
             info_dict['sensitivity'] = sensitivity
