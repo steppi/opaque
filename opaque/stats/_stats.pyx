@@ -8,7 +8,7 @@ from numpy.random cimport bitgen_t
 from numpy.random.c_distributions cimport random_beta
 
 from libc.float cimport DBL_MIN, DBL_MAX
-from libc.math cimport fabs, exp, log, log1p, sqrt, isnan, HUGE_VAL
+from libc.math cimport fabs, exp, expm1, log, log1p, sqrt, isnan, HUGE_VAL
 
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid
@@ -140,17 +140,14 @@ cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
     if c2 < 0:
         c1, c2 = 1 - c1, -c2
         anti_test = True
-    output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*theta),
-                      logY)
-    # I'll have to put comments explaining everything later
-    if output < -DBL_MAX:
-        log_delta = log_beta_pdf(t + 1, n - t + 1, c1)
-        if log_delta < -DBL_MAX:
-            return log(theta)
-        return log_sum(log_delta + log(theta), logY)
+    output = log_diff(log_betainc(t + 1, n - t + 1,
+                                  c1 + c2*(theta if not anti_test
+                                           else 1 - theta)), logY)
     output -= log_diff(log_betainc(t + 1, n - t + 1, c1 + c2),
                        logY)
-    return output
+    if isnan(output):
+        return log(theta)
+    return output if not anti_test else log_diff(0, output)
 
 
 cdef double _prevalence_cdf_fixed(double theta, int n, int t,
