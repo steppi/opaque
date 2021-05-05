@@ -59,7 +59,7 @@ class TestPrevalenceCdfFixed(object):
 
     @pytest.mark.parametrize('test_input',
                              [(20, t) for t in range(5, 16)])
-    def test_prevalence_cdf_fixed_sim1(self, test_input, simulation0):
+    def test_prevalence_cdf_fixed_sim0(self, test_input, simulation0):
         results, info = simulation0
         n, t = test_input
         num_grid_points = info['num_grid_points']
@@ -69,11 +69,11 @@ class TestPrevalenceCdfFixed(object):
         mae, mxae = self.get_mae_for_testcase(n, t, sens, spec,
                                               num_grid_points, results)
         assert mae < 0.01
-        assert mxae < 0.075
+        assert mxae < 0.1
 
     @pytest.mark.parametrize('test_input',
-                             [(1000, t) for t in range(200, 801)])
-    def test_prevalence_cdf_fixed_sim2(self, test_input, simulation1):
+                             [(100, t) for t in range(20, 81)])
+    def test_prevalence_cdf_fixed_sim1(self, test_input, simulation1):
         results, info = simulation1
         n, t = test_input
         num_grid_points = info['num_grid_points']
@@ -83,11 +83,11 @@ class TestPrevalenceCdfFixed(object):
         mae, mxae = self.get_mae_for_testcase(n, t, sens, spec,
                                               num_grid_points, results)
         assert mae < 0.01
-        assert mxae < 0.05
+        assert mxae < 0.1
 
     @pytest.mark.parametrize('test_input',
-                             [(50, t) for t in range(10, 41)])
-    def test_prevalence_cdf_fixed_sim3(self, test_input, simulation2):
+                             [(100, t) for t in range(200, 801)])
+    def test_prevalence_cdf_fixed_sim2(self, test_input, simulation2):
         results, info = simulation2
         n, t = test_input
         num_grid_points = info['num_grid_points']
@@ -98,4 +98,4 @@ class TestPrevalenceCdfFixed(object):
                                               num_grid_points,
                                               results)
         assert mae < 0.01
-        assert mxae < 0.05
+        assert mxae < 0.1
