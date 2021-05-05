@@ -4,94 +4,98 @@ with empirical distributions based on simulations. Ensures mean absolute
 error between calculated CDF and empirical CDF remains within tolerance
 tol = 0.05.
 """
+import os
+import json
 import pytest
 import numpy as np
-from scipy.stats import binom
-from collections import defaultdict
-from statsmodels.distributions.empirical_distribution import ECDF
 
 from opaque.stats import prevalence_cdf_fixed
+from opaque.locations import TEST_DATA_LOCATION
 
 
-def simulation(sensitivity, specificity, n_trials=1000, samples_per_trial=100,
-               num_grid_points=100, seed=None):
-    results = defaultdict(list)
-    random_state = np.random.RandomState(seed)
-    binom_pos = binom(1, sensitivity)
-    binom_neg = binom(1, 1 - specificity)
-    binom_pos.random_state = random_state
-    binom_neg.random_state = random_state
-    for theta in np.linspace(0, 1, num_grid_points):
-        binom_ground = binom(1, theta)
-        binom_ground.random_state = random_state
-        for i in range(n_trials):
-            ground = binom_ground.rvs(size=samples_per_trial)
-            pos = binom_pos.rvs(size=samples_per_trial)
-            neg = binom_neg.rvs(size=samples_per_trial)
-            observed = np.where(ground == 1, pos, neg)
-            n, t = samples_per_trial, sum(observed)
-            results[(n, t)].append(theta)
-    results = {(n, t): ECDF(theta_list)
-               for (n, t), theta_list in results.items()}
-    return results
+def get_simulation_results(test_data_filename):
+    with open(os.path.join(TEST_DATA_LOCATION,
+                           test_data_filename)) as f:
+        sim_results = json.load(f)
+    results, info = sim_results['results'], sim_results['info']
+    return results, info
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
+def simulation0():
+    return get_simulation_results('prevalence_cdf_simulation_fixed0.json')
+
+
+@pytest.fixture
 def simulation1():
-    sens, spec = 0.8, 0.7
-    return sens, spec, simulation(sens, spec, samples_per_trial=20, seed=561)
+    return get_simulation_results('prevalence_cdf_simulation_fixed1.json')
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def simulation2():
-    sens, spec = 0.7, 0.8
-    return sens, spec, simulation(sens, spec, samples_per_trial=100, seed=1105)
+    return get_simulation_results('prevalence_cdf_simulation_fixed2.json')
 
 
-@pytest.fixture(scope='session')
-def simulation3():
-    sens, spec = 0.6, 0.9
-    return (sens, spec, simulation(sens, spec, samples_per_trial=1000,
-                                   seed=1729))
+class TestPrevalenceCdfFixed(object):
+    def get_simulation_results(self, test_data_filename):
+        with open(os.path.join(TEST_DATA_LOCATION,
+                               'prevalence_cdf_simulation_fixed0.json')) as f:
+            sim_results = json.load(f)
+        results, info = sim_results['results'], sim_results['info']
+        return results, info
 
+    def calculate_cdf(self, n, t, sens, spec, num):
+        return np.fromiter((prevalence_cdf_fixed(theta, n, t, sens, spec)
+                            for theta in np.linspace(0, 1, num)), dtype=float)
 
-def get_mae_for_test(n, t, sens, spec, results):
-    ecdf = results[(n, t)]
-    x = np.linspace(0, 1, 100)
-    y1 = ecdf(x)
-    y2 = np.fromiter((prevalence_cdf_fixed(theta, n, t,
-                                           sens,
-                                           spec)
-                      for theta in x), dtype=float)
-    mean_absolute_error = np.sum(np.abs(y1 - y2))/len(x)
-    return mean_absolute_error
+    def get_mae_for_testcase(self, n, t, sens, spec,
+                               num_grid_points, results):
+        simulated_cdf = np.array(results[f'{n}:{t}'])
+        calculated_cdf = self.calculate_cdf(n, t, sens, spec, num_grid_points)
+        residuals = np.abs(simulated_cdf - calculated_cdf)
+        mean_absolute_error = np.sum(residuals)/num_grid_points
+        max_absolute_error = np.max(residuals)
+        return mean_absolute_error, max_absolute_error
 
+    @pytest.mark.parametrize('test_input',
+                             [(20, t) for t in range(5, 16)])
+    def test_prevalence_cdf_fixed_sim1(self, test_input, simulation0):
+        results, info = simulation0
+        n, t = test_input
+        num_grid_points = info['num_grid_points']
+        sens, spec = info['sensitivity'], info['specificity']
+        if f'{n}:{t}' not in results:
+            return
+        mae, mxae = self.get_mae_for_testcase(n, t, sens, spec,
+                                              num_grid_points, results)
+        assert mae < 0.01
+        assert mxae < 0.075
 
-@pytest.mark.parametrize('test_input',
-                         [(20, t) for t in range(5, 16)])
-def test_prevalence_cdf_fixed_sim1(test_input, simulation1):
-    n, t = test_input
-    sens, spec, results = simulation1
-    if (n, t) in results:
-        mean_absolute_error = get_mae_for_test(n, t, sens, spec, results)
-        assert mean_absolute_error < 0.05
+    @pytest.mark.parametrize('test_input',
+                             [(1000, t) for t in range(200, 801)])
+    def test_prevalence_cdf_fixed_sim2(self, test_input, simulation1):
+        results, info = simulation1
+        n, t = test_input
+        num_grid_points = info['num_grid_points']
+        sens, spec = info['sensitivity'], info['specificity']
+        if f'{n}:{t}' not in results:
+            return
+        mae, mxae = self.get_mae_for_testcase(n, t, sens, spec,
+                                              num_grid_points, results)
+        assert mae < 0.01
+        assert mxae < 0.05
 
-
-@pytest.mark.parametrize('test_input',
-                         [(100, t) for t in range(20, 81)])
-def test_prevalence_cdf_fixed_sim2(test_input, simulation2):
-    n, t = test_input
-    sens, spec, results = simulation2
-    if (n, t) in results:
-        mean_absolute_error = get_mae_for_test(n, t, sens, spec, results)
-        assert mean_absolute_error < 0.05
-
-
-@pytest.mark.parametrize('test_input',
-                         [(1000, t) for t in range(200, 801)])
-def test_prevalence_cdf_fixed_sim3(test_input, simulation3):
-    n, t = test_input
-    sens, spec, results = simulation3
-    if (n, t) in results:
-        mean_absolute_error = get_mae_for_test(n, t, sens, spec, results)
-        assert mean_absolute_error < 0.05
+    @pytest.mark.parametrize('test_input',
+                             [(50, t) for t in range(10, 41)])
+    def test_prevalence_cdf_fixed_sim3(self, test_input, simulation2):
+        results, info = simulation2
+        n, t = test_input
+        num_grid_points = info['num_grid_points']
+        sens, spec = info['sensitivity'], info['specificity']
+        if f'{n}:{t}' not in results:
+            return
+        mae, mxae = self.get_mae_for_testcase(n, t, sens, spec,
+                                              num_grid_points,
+                                              results)
+        assert mae < 0.01
+        assert mxae < 0.05
