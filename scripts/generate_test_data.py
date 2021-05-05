@@ -6,8 +6,8 @@ from opaque.simulations.prevalence import PrevalenceSimulation
 
 
 @click.command()
-@click.option('--n_jobs', default=1)
-@click.option('--n_trials', default=10000)
+@click.option('--n_jobs', default=1, type=int, show_default=True)
+@click.option('--n_trials', default=10000, type=int, show_default=True)
 def main(n_jobs, n_trials):
     simulations_with_prior = [PrevalenceSimulation((70, 30), (60, 40),
                                                    samples_per_trial=100,
