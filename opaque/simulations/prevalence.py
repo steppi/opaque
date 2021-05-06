@@ -55,7 +55,7 @@ class PrevalenceSimulation(object):
                   for _ in range(n_trials)
                   for theta in np.linspace(0, 1, self.num_grid_points))
         with Pool(n_jobs) as pool:
-            results = pool.starmap(_run_trial_for_theta, points)
+            results = pool.starmap(run_trial_for_theta, points)
         aggregate_results = defaultdict(list)
         for n, t, theta in results:
             aggregate_results[(n, t)].append(theta)
@@ -71,8 +71,8 @@ class PrevalenceSimulation(object):
                 'info': self.info_dict}
 
 
-def _run_trial_for_theta(theta, sensitivity, specificity,
-                         samples_per_trial, random_state):
+def run_trial_for_theta(theta, sensitivity, specificity,
+                        samples_per_trial, random_state):
     binom_ground = binom(1, theta)
     binom_ground.random_state = random_state
     binom_pos = binom(1,sensitivity)
