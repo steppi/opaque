@@ -8462,7 +8462,7 @@ static PyObject *__pyx_pf_6opaque_5stats_6_stats_10highest_density_interval(CYTH
  *     func = f2 if mc_est else f1
  *     args.num_mc_samples = num_mc_samples             # <<<<<<<<<<<<<<
  *     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
- *                                                     1e-3, 1e-3, &args)
+ *                                                     1e-2, 1e-2, &args)
  */
   __pyx_t_2 = __Pyx_PyInt_As_int(__pyx_v_num_mc_samples); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 507, __pyx_L1_error)
   __pyx_v_args.num_mc_samples = __pyx_t_2;
@@ -8471,10 +8471,10 @@ static PyObject *__pyx_pf_6opaque_5stats_6_stats_10highest_density_interval(CYTH
  *     func = f2 if mc_est else f1
  *     args.num_mc_samples = num_mc_samples
  *     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,             # <<<<<<<<<<<<<<
- *                                                     1e-3, 1e-3, &args)
+ *                                                     1e-2, 1e-2, &args)
  *     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
  */
-  __pyx_t_6 = __pyx_f_6opaque_5stats_6_stats_golden_section_search(__pyx_f_6opaque_5stats_6_stats_interval_width, 0.0, __pyx_v_alpha, 1e-3, 1e-3, (&__pyx_v_args));
+  __pyx_t_6 = __pyx_f_6opaque_5stats_6_stats_golden_section_search(__pyx_f_6opaque_5stats_6_stats_interval_width, 0.0, __pyx_v_alpha, 1e-2, 1e-2, (&__pyx_v_args));
   __pyx_t_3 = __pyx_t_6.f0;
   __pyx_t_4 = __pyx_t_6.f1;
   __pyx_v_argmin_width = __pyx_t_3;
@@ -8482,7 +8482,7 @@ static PyObject *__pyx_pf_6opaque_5stats_6_stats_10highest_density_interval(CYTH
 
   /* "opaque/stats/_stats.pyx":510
  *     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
- *                                                     1e-3, 1e-3, &args)
+ *                                                     1e-2, 1e-2, &args)
  *     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,             # <<<<<<<<<<<<<<
  *                         num_mc_samples, func)
  *     right = left + min_width
@@ -8491,7 +8491,7 @@ static PyObject *__pyx_pf_6opaque_5stats_6_stats_10highest_density_interval(CYTH
   __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_t); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 510, __pyx_L1_error)
 
   /* "opaque/stats/_stats.pyx":511
- *                                                     1e-3, 1e-3, &args)
+ *                                                     1e-2, 1e-2, &args)
  *     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
  *                         num_mc_samples, func)             # <<<<<<<<<<<<<<
  *     right = left + min_width
@@ -8501,7 +8501,7 @@ static PyObject *__pyx_pf_6opaque_5stats_6_stats_10highest_density_interval(CYTH
 
   /* "opaque/stats/_stats.pyx":510
  *     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
- *                                                     1e-3, 1e-3, &args)
+ *                                                     1e-2, 1e-2, &args)
  *     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,             # <<<<<<<<<<<<<<
  *                         num_mc_samples, func)
  *     right = left + min_width

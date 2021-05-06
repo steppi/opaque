@@ -506,7 +506,7 @@ def highest_density_interval(n: int, t: int, sens_a: float, sens_b: float,
     func = f2 if mc_est else f1
     args.num_mc_samples = num_mc_samples
     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
-                                                    1e-3, 1e-3, &args)
+                                                    1e-2, 1e-2, &args)
     left = _inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
                         num_mc_samples, func)
     right = left + min_width
