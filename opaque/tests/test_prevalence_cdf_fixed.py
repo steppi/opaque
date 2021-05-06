@@ -37,13 +37,6 @@ def simulation2():
 
 
 class TestPrevalenceCdfFixed(object):
-    def get_simulation_results(self, test_data_filename):
-        with open(os.path.join(TEST_DATA_LOCATION,
-                               'prevalence_cdf_simulation_fixed0.json')) as f:
-            sim_results = json.load(f)
-        results, info = sim_results['results'], sim_results['info']
-        return results, info
-
     def calculate_cdf(self, n, t, sens, spec, num):
         return np.fromiter((prevalence_cdf_fixed(theta, n, t, sens, spec)
                             for theta in np.linspace(0, 1, num)), dtype=float)

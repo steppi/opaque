@@ -33,16 +33,9 @@ def simulation2():
     return get_simulation_results('prevalence_cdf_simulation2.json')
 
 
-class TestPrevalenceCdfFixed(object):
-    def get_simulation_results(self, test_data_filename):
-        with open(os.path.join(TEST_DATA_LOCATION,
-                               'prevalence_cdf_simulation_fixed0.json')) as f:
-            sim_results = json.load(f)
-        results, info = sim_results['results'], sim_results['info']
-        return results, info
-
+class TestPrevalenceCdf(object):
     def calculate_cdf(self, n, t, sens_a, sens_b,
-                      spec_a, spec_b, num):
+                      spec_a, spec_b, num, mc_est=True):
         return np.fromiter((prevalence_cdf(theta, n, t, sens_a,
                                            sens_b, spec_a, spec_b)
                             for theta in np.linspace(0, 1, num)), dtype=float)
@@ -53,7 +46,7 @@ class TestPrevalenceCdfFixed(object):
         simulated_cdf = np.array(results[f'{n}:{t}'])
         calculated_cdf = self.\
             calculate_cdf(n, t, sens_a, sens_b, spec_a, spec_b,
-                          num_grid_points)
+                          num_grid_points, mc_est=False)
         residuals = np.abs(simulated_cdf - calculated_cdf)
         mean_absolute_error = np.sum(residuals)/num_grid_points
         max_absolute_error = np.max(residuals)
@@ -61,7 +54,7 @@ class TestPrevalenceCdfFixed(object):
 
     @pytest.mark.parametrize('test_input',
                              [(100, t) for t in range(20, 81)])
-    def test_prevalence_cdf_fixed_sim0(self, test_input, simulation0):
+    def test_prevalence_cdf_sim0(self, test_input, simulation0):
         results, info = simulation0
         n, t = test_input
         num_grid_points = info['num_grid_points']
@@ -76,7 +69,7 @@ class TestPrevalenceCdfFixed(object):
 
     @pytest.mark.parametrize('test_input',
                              [(1000, t) for t in range(300, 701)])
-    def test_prevalence_cdf_fixed_sim1(self, test_input, simulation1):
+    def test_prevalence_cdf_sim1(self, test_input, simulation1):
         results, info = simulation1
         n, t = test_input
         num_grid_points = info['num_grid_points']
@@ -91,7 +84,7 @@ class TestPrevalenceCdfFixed(object):
         
     @pytest.mark.parametrize('test_input',
                              [(50, t) for t in range(10, 41)])
-    def test_prevalence_cdf_fixed_sim2(self, test_input, simulation2):
+    def test_prevalence_cdf_sim2(self, test_input, simulation2):
         results, info = simulation2
         n, t = test_input
         num_grid_points = info['num_grid_points']

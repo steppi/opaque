@@ -1,4 +1,3 @@
-
 import cython
 import numpy as np
 from numpy.random import PCG64
@@ -116,13 +115,6 @@ def log_betainc(p: float, q: float, x: float) -> float:
     return _log_betainc(p, q, x)
 
 
-cdef double log_sum(double log_p, double log_q):
-    """Returns log(p + q) given log(p) = log_p and log(q) = log_q."""
-    if log_p < log_q:
-        log_p, log_q = log_q, log_p
-    return log_p + log1p(exp(log_q - log_p))
-
-
 cdef double log_diff(double log_p, double log_q):
     """Returns log(p - q) given log(p) = log_p and log(q) = log_q."""
     return log_p + log1p(-exp(log_q - log_p))
@@ -193,6 +185,10 @@ cdef double _prevalence_cdf(double theta, int n, int t,
                             double spec_a, double spec_b):
     """Compute marginalization integral with quadrature."""
     cdef double output, error
+    if theta == 0.0:
+        return 0.0
+    elif theta == 1.0:
+        return 1.0
     p = Params(theta, n, t, sens_a, sens_b, spec_a, spec_b)
     output, error = dblquad(integrand_cdf, 0, 1, 0, 1, args=(p,),
                             epsabs=1e-3, epsrel=1e-3)
@@ -216,6 +212,10 @@ cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
     cdef double *sens_array
     cdef double *spec_array
 
+    if theta == 0.0:
+        return 0.0
+    elif theta == 1.0:
+        return 1.0
     sens_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
     spec_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
     
@@ -303,9 +303,11 @@ ctypedef struct inverse_cdf_params:
 @cython.cdivision(True)
 cdef double f1(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
+    cdef double y
     return _prevalence_cdf(theta, params.n, params.t,
                            params.sens_a, params.sens_b,
                            params.spec_a, params.spec_b) - params.val
+
 
 
 @cython.cdivision(True)
@@ -324,12 +326,17 @@ cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
                          double spec_a, double spec_b, int num_mc_samples,
                          function_1d func):
     cdef inverse_cdf_params args
+    cdef double y
+    if x == 0.0:
+        return 0.0
+    elif x == 1.0:
+        return 1.0
     args.n, args.t = n, t
     args.num_mc_samples = num_mc_samples
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = x
-    return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
+    y = brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
 
 def inverse_prevalence_cdf(x: float, n: int, t: int, sens_a: float,
