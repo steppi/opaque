@@ -87,9 +87,9 @@ cdef double _log_betainc(double p, double q, double x):
     """Returns log of incomplete beta function."""
     cdef double output
     if x <= p/(p + q):
-        output = xlog1py(q, -x) + xlogy(p, x) - log(p)
+        output = log(K(p, q, x, 1e-20))
+        output += xlog1py(q, -x) + xlogy(p, x) - log(p)
         output -= betaln(p, q)
-        output += log(K(p, q, x, 1e-20))
     else:
         output = log_diff(0, log_betainc(q, p, 1-x))
     return output
@@ -326,7 +326,6 @@ cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
                          double spec_a, double spec_b, int num_mc_samples,
                          function_1d func):
     cdef inverse_cdf_params args
-    cdef double y
     if x == 0.0:
         return 0.0
     elif x == 1.0:
@@ -336,7 +335,7 @@ cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = x
-    y = brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
+    return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
 
 def inverse_prevalence_cdf(x: float, n: int, t: int, sens_a: float,
