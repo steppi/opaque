@@ -8,7 +8,10 @@ from opaque.stats import log_betainc
 
 def mpmath_log_betainc(p, q, x):
     """mpmath referenec implementation for log_betainc."""
-    return mp.log(mp.betainc(p, q, 0, x, regularized=True))
+    if x < p/(p + q):
+        return mp.log(mp.betainc(p, q, 0, x, regularized=True))
+    else:
+        return mp.log1p(-mp.betainc(q, p, 0, 1 - x, regularized=True))
 
 
 @pytest.mark.parametrize('test_input',
