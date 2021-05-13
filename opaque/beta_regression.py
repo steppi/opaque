@@ -9,12 +9,14 @@ class BetaRegressor(BaseEstimator, RegressorMixin):
                  coefficient_prior_scale=100.0,
                  intercept_prior_type='normal',
                  intercept_prior_scale=1000.0,
+                 rescale_response=True,
                  **sampler_args):
         self.coefficient_prior_type = coefficient_prior_type
         self.coefficient_prior_scale = coefficient_prior_scale
         self.intercept_prior_type = intercept_prior_type
         self.intercept_prior_scale = intercept_prior_scale
         self.sampler_args = sampler_args
+        self.rescale_response = rescale_response
         self.mean_use_cols = None
         self.disp_use_cols = None
         self.model_ = None
@@ -24,6 +26,8 @@ class BetaRegressor(BaseEstimator, RegressorMixin):
         self.mean_use_cols = mean_use_cols
         self.disp_use_cols = disp_use_cols
         X, y = check_X_y(X, y)
+        if self.rescale_response:
+            y = (y * (len(y) - 1) + 0.5) / len(y)
         with pm.Model() as model:
             if self.intercept_prior_type == 'normal':
                 int_mean = pm.Normal('int_mean', 0.0,
