@@ -15,12 +15,17 @@ class BetaRegressor(BaseEstimator, RegressorMixin):
         self.coefficient_prior_scale = coefficient_prior_scale
         self.intercept_prior_type = intercept_prior_type
         self.intercept_prior_scale = intercept_prior_scale
-        self.sampler_args = sampler_args
+
         self.rescale_response = rescale_response
         self.mean_use_cols = None
         self.disp_use_cols = None
         self.model_ = None
         self.trace_ = None
+        if 'return_inferencedata' not in sampler_args:
+            sampler_args['return_inferencedata'] = True
+        if 'progressbar' not in sampler_args:
+            sampler_args['progressbar'] = False
+        self.sampler_args = sampler_args
 
     def fit(self, X, y, mean_use_cols=None, disp_use_cols=None):
         self.mean_use_cols = mean_use_cols
@@ -83,10 +88,8 @@ class BetaRegressor(BaseEstimator, RegressorMixin):
 
     def get_posterior_predictions(self, X, **pymc3_args):
         check_is_fitted(self)
-        if 'var_names' in pymc3_args:
-            var_names = pymc3_args.pop('var_names')
-        else:
-            var_names = ['y_est', 'mu_est', 'nu_est']
+        if 'var_names' not in pymc3_args:
+            pymc3_args['var_names'] = ['y_est', 'mu_est', 'nu_est']
         mean_use_cols, disp_use_cols = self.mean_use_cols, self.disp_use_cols
         X = check_array(X)
         X_mean = X[:] if mean_use_cols is None else X[:, mean_use_cols]
@@ -97,7 +100,6 @@ class BetaRegressor(BaseEstimator, RegressorMixin):
                          'y_obs': np.empty(len(X_mean))})
             post_pred = pm.\
                 fast_sample_posterior_predictive(self.trace_,
-                                                 var_names=var_names,
                                                  **pymc3_args)
         
         return post_pred
