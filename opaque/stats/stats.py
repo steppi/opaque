@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from typing import Any
 from numpy.typing import ArrayLike
+from scipy.special import betaln, digamma
 from sklearn.utils.validation import column_or_1d
 
 
@@ -61,3 +62,10 @@ def youdens_j_score(y_true: ArrayLike, y_pred: ArrayLike,
     sens = sensitivity_score(y_true, y_pred, pos_label)
     spec = specificity_score(y_true, y_pred, pos_label)
     return sens + spec - 1
+
+
+def KL_beta(a1, b1, a2, b2):
+    output = betaln(a1, b1) - betaln(a2, b2)
+    output -= (a2 - a1) * digamma(a1) + (b2 - b1) * digamma(b1)
+    output += (a2 - a1 + b2 - b1) * digamma(a1 + b1)
+    return output
