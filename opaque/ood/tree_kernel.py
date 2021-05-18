@@ -9,7 +9,8 @@ def make_random_forest_kernel(trained_forest):
         n1, p1 = X.shape
         n2, p2 = Y.shape
         if p1 != p2:
-            raise ValueError('Input matrices do not have compatible shape.')
+            raise ValueError("Input matrices do not have compatible shape.")
         X_32, Y_32 = X.astype(np.float32), Y.astype(np.float32)
         return tree_kernel(X_32, Y_32, trees)
+
     return K
