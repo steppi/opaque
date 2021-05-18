@@ -75,8 +75,22 @@ class ForestOneClassSVM(BaseEstimator):
         self.estimator_ = estimator
         return self
 
-    def predict(self, X):
+    def ood_predict(self, X):
         return self.estimator_.predict(X)
 
-    def decision_function(self, X):
+    def ood_decision_function(self, X):
         return self.estimator_.decision_function(X)
+
+    def forest_predict(self, X):
+        return self.forest.predict(X)
+
+    def forest_predict_proba(self, X):
+        return self.forest.predict_proba(X)
+
+    def forest_predict_log_proba(self, X):
+        return self.forest.predict_log_proba(X)
+
+    def predict(self, X):
+        ood_predictions = self.ood_predict(X)
+        forest_predictions = self.forest_predict(X)
+        return np.where(ood_predictions == -1.0, None, forest_predictions)
