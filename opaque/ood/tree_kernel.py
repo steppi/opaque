@@ -2,7 +2,7 @@ import numpy as np
 from opaque.ood._tree_kernel import tree_kernel
 
 
-def make_random_forest_kernel(trained_forest):
+def make_forest_kernel(trained_forest):
     trees = [est.tree_ for est in trained_forest.estimators_]
 
     def K(X, Y):
