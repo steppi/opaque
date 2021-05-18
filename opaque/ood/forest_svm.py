@@ -13,7 +13,7 @@ class AnyMethodPipeline(Pipeline):
         Xt = X
         for _, name, transform in self._iter(with_final=False):
             Xt = transform.transform(Xt)
-        return getattr(self.steps[-1][-1], method)(X, **params)
+        return getattr(self.steps[-1][-1], method)(Xt, **params)
 
 
 def make_forest_kernel(trained_forest):
