@@ -1,19 +1,10 @@
 import numpy as np
 from sklearn.svm import OneClassSVM
-from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
+
 
 from opaque.ood._tree_kernel import tree_kernel
-
-
-class AnyMethodPipeline(Pipeline):
-    """sklearn Pipeline that allows any method of final estimator to be called
-    """
-    def apply_method(self, method, X, **params):
-        Xt = X
-        for _, name, transform in self._iter(with_final=False):
-            Xt = transform.transform(Xt)
-        return getattr(self.steps[-1][-1], method)(Xt, **params)
 
 
 def make_forest_kernel(trained_forest):
@@ -50,16 +41,18 @@ class ForestOneClassSVM(BaseEstimator):
         self.verbose = verbose
         self.max_iter = max_iter
         self.forest = forest
-        self.estimator_ = None
 
     def fit(self, X, y, sample_weight=None, **params):
         num_classes = len(set(y))
-        if num_classes > 1:
-            forest_estimator = self.forest
-            forest_estimator.fit(X, y, sample_weight=sample_weight)
-            kernel = make_forest_kernel(forest_estimator)
-        else:
-            kernel = "linear"
+        if num_classes < 2:
+            raise ValueError(
+                'Target label y must contain at least two classes. '
+                f'Contains {num_classes}.'
+            )
+        forest_estimator = self.forest
+        forest_estimator.fit(X, y, sample_weight=sample_weight)
+        kernel = make_forest_kernel(forest_estimator)
+
         estimator = OneClassSVM(
             kernel=kernel,
             tol=self.tol,
@@ -74,21 +67,28 @@ class ForestOneClassSVM(BaseEstimator):
         return self
 
     def ood_predict(self, X):
+        check_is_fitted(self)
         return self.estimator_.predict(X)
 
     def ood_decision_function(self, X):
+        check_is_fitted(self)
         return self.estimator_.decision_function(X)
 
     def forest_predict(self, X):
+        check_is_fitted(self.forest)
         return self.forest.predict(X)
 
     def forest_predict_proba(self, X):
+        check_is_fitted(self.forest)
         return self.forest.predict_proba(X)
 
     def forest_predict_log_proba(self, X):
+        check_is_fitted(self.forest)
         return self.forest.predict_log_proba(X)
 
     def predict(self, X):
+        check_is_fitted(self)
+        check_is_fitted(self.forest)
         ood_predictions = self.ood_predict(X)
         forest_predictions = self.forest_predict(X)
         return np.where(ood_predictions == -1.0, None, forest_predictions)
