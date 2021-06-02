@@ -8,6 +8,7 @@ from opaque.ood._tree_kernel import tree_kernel
 
 
 def make_forest_kernel(trained_forest):
+    """Turn a trained Scikit-Learn tree ensemble into a kernel."""
     trees = [est.tree_ for est in trained_forest.estimators_]
 
     def K(X, Y):
@@ -22,6 +23,8 @@ def make_forest_kernel(trained_forest):
 
 
 class ForestOneClassSVM(BaseEstimator):
+    """One Class SVM with a tree ensemble for a kernel."""
+
     def __init__(
         self,
         forest,
@@ -46,8 +49,8 @@ class ForestOneClassSVM(BaseEstimator):
         num_classes = len(set(y))
         if num_classes < 2:
             raise ValueError(
-                'Target label y must contain at least two classes. '
-                f'Contains {num_classes}.'
+                "Target label y must contain at least two classes. "
+                f"Contains {num_classes}."
             )
         forest_estimator = self.forest
         forest_estimator.fit(X, y, sample_weight=sample_weight)
@@ -66,11 +69,11 @@ class ForestOneClassSVM(BaseEstimator):
         self.estimator_ = estimator
         return self
 
-    def ood_predict(self, X):
+    def out_of_dist_predict(self, X):
         check_is_fitted(self)
         return self.estimator_.predict(X)
 
-    def ood_decision_function(self, X):
+    def out_of_dist_decision_function(self, X):
         check_is_fitted(self)
         return self.estimator_.decision_function(X)
 
@@ -89,6 +92,8 @@ class ForestOneClassSVM(BaseEstimator):
     def predict(self, X):
         check_is_fitted(self)
         check_is_fitted(self.forest)
-        ood_predictions = self.ood_predict(X)
+        out_of_dist_predictions = self.out_of_dist_predict(X)
         forest_predictions = self.forest_predict(X)
-        return np.where(ood_predictions == -1.0, None, forest_predictions)
+        return np.where(
+            out_of_dist_predictions == -1.0, None, forest_predictions
+        )
