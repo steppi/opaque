@@ -36,6 +36,10 @@ class LinearOneClassSVM(OneClassSVM):
             "n_support": self._n_support.tolist()
         }
 
+    def feature_scores(self):
+        check_is_fitted(self)
+        return self.coef_
+
     @classmethod
     def load_model_info(cls, model_info):
         model = LinearOneClassSVM(**model_info["params"])
