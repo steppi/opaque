@@ -1,5 +1,3 @@
-import gzip
-import json
 import numpy as np
 from sklearn.svm import OneClassSVM
 from sklearn.utils.validation import check_is_fitted
