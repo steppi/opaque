@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
@@ -36,10 +37,10 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
             self.stop_words = stop_words
         self.no_above = no_above
         self.no_below = no_below
-        self.dict_path = dict_path
         self.tfidf_params = tfidf_params
         self.max_features_per_class = max_features_per_class
         self.__tokenize = TfidfVectorizer().build_tokenizer()
+        self.dict_path = os.path.realpath(os.path.expanduser(dict_path))
 
     def fit(self, raw_documents, y=None):
         if y is None:
