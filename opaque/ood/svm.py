@@ -39,13 +39,6 @@ class LinearOneClassSVM(OneClassSVM):
             "n_support": self._n_support.tolist()
         }
 
-    def dump_model(self, filepath):
-        model_info = self.get_model_info()
-        json_str = json.dumps(model_info)
-        json_bytes = json_str.encode('utf-8')
-        with gzip.GzipFile(filepath, 'w') as fout:
-            fout.write(json_bytes)
-
     @classmethod
     def load_model_info(cls, model_info):
         model = LinearOneClassSVM(**model_info["params"])
@@ -62,11 +55,3 @@ class LinearOneClassSVM(OneClassSVM):
         model._gamma = 0.0
         model._probA, model._probB = np.array([]), np.array([])
         return model
-
-    @classmethod
-    def load_model(cls, filepath):
-        with gzip.GzipFile(filepath, 'r') as fin:
-            json_bytes = fin.read()
-        json_str = json_bytes.decode('utf-8')
-        model_info = json.loads(json_str)
-        return cls.load_model_info(model_info)
