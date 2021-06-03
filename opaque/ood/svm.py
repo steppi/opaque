@@ -1,4 +1,4 @@
-import numpy as np
+oimport numpy as np
 from sklearn.svm import OneClassSVM
 from sklearn.utils.validation import check_is_fitted
 
@@ -26,10 +26,9 @@ class LinearOneClassSVM(OneClassSVM):
     def get_model_info(self):
         check_is_fitted(self)
         return {
-            "params": self.get_params(),
             "sparse": self._sparse,
+            "params": self.get_params(),
             "shape_fit": list(self.shape_fit_),
-            "coef": self.coef_.tolist(),
             "support": self.support_.tolist(),
             "intercept": self.intercept_.tolist(),
             "dual_coef": self.dual_coef_.tolist(),
