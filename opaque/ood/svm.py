@@ -46,7 +46,7 @@ class LinearOneClassSVM(OneClassSVM):
         model.support_vectors_ = np.array(model_info["support_vectors"])
         model.support_ = np.array(model_info["support"], dtype=np.int32)
         model._n_support = np.array(model_info["n_support"], dtype=np.int32)
-
+        model.fit_status_ = 0.0
         model._intercept_ = model.intercept_
         model._dual_coef_ = model.dual_coef_
         model._gamma = 0.0
