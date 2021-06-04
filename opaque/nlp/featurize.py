@@ -1,4 +1,5 @@
 import os
+import logging
 from collections import defaultdict
 from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
@@ -6,6 +7,8 @@ from gensim.matutils import corpus2csc
 from sklearn.utils.validation import check_is_fitted
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+logging.getLogger("gensim").setLevel("WARNING")
 
 
 class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
