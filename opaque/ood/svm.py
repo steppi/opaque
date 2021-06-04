@@ -16,15 +16,15 @@ class SerializableOneClassSVM(OneClassSVM):
             "support": serialize_array(self.support_),
             "intercept": serialize_array(self.intercept_),
             "dual_coef": serialize_array(self.dual_coef_),
+            "n_support": serialize_array(self._n_support),
             "support_vectors": serialize_array(self.support_vectors_),
-            "n_support": serialize_array(self._n_support)
         }
 
     def feature_scores(self):
         check_is_fitted(self)
-        try:
+        if self.kernel == "linear":
             return self.coef_
-        except AttributeError:
+        else:
             raise AttributeError(
                 "Feature scores only available when using a linear kernel."
             )
