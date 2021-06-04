@@ -23,13 +23,13 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self,
-        dict_path,
-        no_above=0.5,
-        no_below=5,
-        max_features_per_class=None,
-        stop_words=None,
-        **tfidf_params
+            self,
+            path,
+            no_above=0.5,
+            no_below=5,
+            max_features_per_class=None,
+            stop_words=None,
+            **tfidf_params
     ):
         if stop_words is None:
             self.stop_words = []
@@ -40,7 +40,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         self.tfidf_params = tfidf_params
         self.max_features_per_class = max_features_per_class
         self.__tokenize = TfidfVectorizer().build_tokenizer()
-        self.dict_path = os.path.realpath(os.path.expanduser(dict_path))
+        self.path = os.path.realpath(os.path.expanduser(path))
 
     def fit(self, raw_documents, y=None):
         if y is None:
@@ -53,7 +53,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
                 texts[label].append(self._preprocess(text))
         good_tokens = set()
         # Load background dictionary trained on large corpus
-        dictionary = Dictionary.load(self.dict_path)
+        dictionary = Dictionary.load(self.path)
         # Filter out tokens by their frequency.
         dictionary.filter_extremes(
             no_above=self.no_above, no_below=self.no_below
@@ -143,9 +143,10 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         ]
 
     @classmethod
-    def load(cls, dict_path, tokens, **params):
-        tfidf = BaselineTfidfVectorizer(dict_path)
-        dictionary = Dictionary.load(dict_path)
+    def load_model_info(cls, path, model_info):
+        tokens = model_info["tokens"]
+        tfidf = BaselineTfidfVectorizer(path)
+        dictionary = Dictionary.load(path)
         dictionary.filter_tokens(
             good_ids=(
                 key for key, value in dictionary.items() if value in tokens
@@ -155,19 +156,19 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         tfidf.model_ = model
         tfidf.tokens_ = tokens
         tfidf.dictionary_ = dictionary
-        if "max_features_per_class" in params:
-            tfidf.max_features_per_class = params["max_features_per_class"]
-        if "stop_words" in params:
-            tfidf.stop_words = params["stop_words"]
-        if "no_above" in params:
-            tfidf.no_below = params["no_above"]
-        if "no_below" in params:
-            tfidf.no_below = params["no_below"]
-        if "tfidf_params" in params:
-            tfidf.tfidf_params = params["tfidf_params"]
+        if "max_features_per_class" in model_info:
+            tfidf.max_features_per_class = model_info["max_features_per_class"]
+        if "stop_words" in model_info:
+            tfidf.stop_words = model_info["stop_words"]
+        if "no_above" in model_info:
+            tfidf.no_below = model_info["no_above"]
+        if "no_below" in model_info:
+            tfidf.no_below = model_info["no_below"]
+        if "tfidf_model_info" in model_info:
+            tfidf.tfidf_model_info = model_info["tfidf_model_info"]
         return tfidf
 
-    def dump(self):
+    def get_model_info(self):
         """Returns dictionary of info needed for reconstruction."""
         check_is_fitted(self)
         return {

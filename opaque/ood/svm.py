@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.svm import OneClassSVM
 from sklearn.utils.validation import check_is_fitted
 
+from opaque.ood.utils import load_array, serialize_array
+
 
 class LinearOneClassSVM(OneClassSVM):
     def __init__(
@@ -29,11 +31,11 @@ class LinearOneClassSVM(OneClassSVM):
             "sparse": self._sparse,
             "params": self.get_params(),
             "shape_fit": list(self.shape_fit_),
-            "support": self.support_.tolist(),
-            "intercept": self.intercept_.tolist(),
-            "dual_coef": self.dual_coef_.tolist(),
-            "support_vectors": self.support_vectors_.tolist(),
-            "n_support": self._n_support.tolist()
+            "support": serialize_array(self.support_),
+            "intercept": serialize_array(self.intercept_),
+            "dual_coef": serialize_array(self.dual_coef_),
+            "support_vectors": serialize_array(self.support_vectors_),
+            "n_support": serialize_array(self._n_support)
         }
 
     def feature_scores(self):
@@ -45,14 +47,16 @@ class LinearOneClassSVM(OneClassSVM):
         model = LinearOneClassSVM(**model_info["params"])
         model._sparse = model_info["sparse"]
         model.shape_fit_ = tuple(model_info["shape_fit"])
-        model.intercept_ = np.array(model_info["intercept"])
-        model.dual_coef_ = np.array(model_info["dual_coef"])
-        model.support_vectors_ = np.array(model_info["support_vectors"])
-        model.support_ = np.array(model_info["support"], dtype=np.int32)
-        model._n_support = np.array(model_info["n_support"], dtype=np.int32)
+        model.intercept_ = load_array(model_info["intercept"])
+        model.dual_coef_ = load_array(model_info["dual_coef"])
+        model.support_vectors_ = load_array(model_info["support_vectors"])
+        model.support_ = load_array(model_info["support"])
+        model._n_support = load_array(model_info["n_support"])
         model.fit_status_ = 0.0
         model._intercept_ = model.intercept_
         model._dual_coef_ = model.dual_coef_
         model._gamma = 0.0
+        model.offset_ = -model.intercept_
+        model.class_weight_ = np.array([])
         model._probA, model._probB = np.array([]), np.array([])
         return model

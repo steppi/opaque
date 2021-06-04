@@ -1,4 +1,6 @@
+import io
 import numpy as np
+from scipy import sparse
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
 
@@ -66,3 +68,27 @@ class SubsetSampler:
             results.add(tuple(self.sample(k)))
             i += 1
         return list(results)
+
+
+def serialize_array(X):
+    memfile = io.BytesIO()
+    if sparse.issparse(X):
+        sparse.save_npz(memfile, X)
+    else:
+        np.save(memfile, X)
+    memfile.seek(0)
+    return memfile.read().decode('latin-1')
+
+
+def load_array(data):
+    memfile = io.BytesIO()
+    memfile.write(data.encode('latin-1'))
+    memfile.seek(0)
+    X = np.load(memfile)
+    if isinstance(X, np.ndarray):
+        return X
+    memfile.seek(0)
+    X = sparse.load_npz(memfile)
+    if sparse.issparse(X):
+        return X
+    raise ValueError("Input is not valid npz data.")
