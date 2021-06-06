@@ -1,4 +1,5 @@
 import os
+import math
 import logging
 from collections import defaultdict
 from gensim.models import TfidfModel
@@ -18,7 +19,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
     ----------
     dict_path : str
         Path to pickle serialized gensim Dictionary
-    max_features_per_class : Optional[int]
+    max_features_per_class : Optional[int|float|callable]
         Maximum number of features taken per class in the training data.
         Default: None
     stop_words : Optional[list]
@@ -83,6 +84,17 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
                 ]
                 local_dictionary.filter_tokens(bad_ids=stop_ids)
             if self.max_features_per_class is not None:
+                mfpc = self.max_features_per_class
+                if isinstance(mfpc, int):
+                    max_features = mfpc
+                elif isinstance(mfpc, float) and mfpc > 0:
+                    max_features = math.floor(mfpc * len(processed_texts))
+                elif callable(mfpc):
+                    max_features = math.floor(mfpc(len(processed_texts)))
+                else:
+                    raise ValueError(
+                        f"Invalid input for max_features_per_class: {mfpc}"
+                    )
                 # Keep only top features for the data in this class.
                 local_dfs = {
                     token: local_dictionary.dfs[id_]
@@ -104,7 +116,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
                 top_features = [
                     token
                     for token, _ in local_df_global_idf[
-                            0: self.max_features_per_class
+                            0: max_features
                     ]
                 ]
                 local_dictionary.filter_tokens(
