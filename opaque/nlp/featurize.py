@@ -35,15 +35,16 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
             stop_words=None,
             **tfidf_params
     ):
+        self.__tokenize = TfidfVectorizer().build_tokenizer()
         if stop_words is None:
             self.stop_words = []
         else:
-            self.stop_words = stop_words
+            self.stop_words = [word.lower() for word in stop_words]
         self.no_above = no_above
         self.no_below = no_below
         self.tfidf_params = tfidf_params
         self.max_features_per_class = max_features_per_class
-        self.__tokenize = TfidfVectorizer().build_tokenizer()
+
         self.path = os.path.realpath(os.path.expanduser(path))
 
     def fit(self, raw_documents, y=None):
