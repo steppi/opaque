@@ -1,8 +1,68 @@
 import numpy as np
 from sklearn.svm import OneClassSVM
+from sklearn.base import BaseEstimator, OutlierMixin
+from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.utils.validation import check_is_fitted
 
+
+from liblinear.liblinearutil import parameter, problem, train
+
+
 from opaque.ood.utils import load_array, serialize_array
+
+
+class OneClassLinearSVC(BaseEstimator, OutlierMixin):
+    def __init__(
+            self,
+            nu=0.5,
+            tol=0.001,
+            verbose=False,
+    ):
+        self.nu = nu
+        self.tol = tol
+        self.verbose = False
+        params = f'-s 21 -e {tol}'
+        if not verbose:
+            params += ' -q'
+        self._params = params
+
+    def fit(self, X, y=None):
+        prob = problem(np.ones(X.shape[0]), X)
+        param = parameter(self._params)
+        model = train(prob, param)
+        W, rho = model.get_decfun()
+        self.coef_ = np.array(W)
+        self.intercept_ = rho
+
+    def decision_function(self, X):
+        check_is_fitted(self)
+        return safe_sparse_dot(
+            X, self.coef_.T, dense_output=True
+        ) + self.intercept_
+
+    def predict(self, X):
+        check_is_fitted(self)
+        scores = self.decision_function(X)
+        return np.where(scores > 0, 1.0, -1.0)
+
+    def get_model_info(self):
+        check_is_fitted(self)
+        return {
+            'coef': serialize_array(self.coef_),
+            'intercept': self.intercept_,
+            'params': self.get_params()
+        }
+
+    def feature_scores(self):
+        check_is_fitted(self)
+        return self.coef_
+
+    @classmethod
+    def load_model_info(cls, model_info):
+        model = OneClassLinearSVC(**model_info["params"])
+        model.intercept_ = model_info["intercept"]
+        model.coef_ = load_array(model_info["coef"])
+        return model
 
 
 class SerializableOneClassSVM(OneClassSVM):
