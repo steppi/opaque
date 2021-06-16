@@ -11,28 +11,42 @@ from liblinear.liblinearutil import parameter, problem, train
 from opaque.ood.utils import load_array, serialize_array
 
 
-class OneClassLinearSVC(BaseEstimator, OutlierMixin):
+class LinearOneClassSVM(BaseEstimator, OutlierMixin):
     def __init__(
             self,
             nu=0.5,
             tol=0.001,
+            solver='libsvm',
             verbose=False,
     ):
         self.nu = nu
         self.tol = tol
         self.verbose = False
-        params = f'-s 21 -e {tol}'
-        if not verbose:
-            params += ' -q'
-        self._params = params
+        self.solver = solver
 
-    def fit(self, X, y=None):
+    def _fit_liblinear(self, X):
+        params = f'-s 21 -e {self.tol}'
+        if not self.verbose:
+            params += ' -q'
         prob = problem(np.ones(X.shape[0]), X)
-        param = parameter(self._params)
+        param = parameter(params)
         model = train(prob, param)
         W, rho = model.get_decfun()
-        self.coef_ = np.array(W)
-        self.intercept_ = rho
+        return np.array(W), rho
+
+    def _fit_libsvm(self, X):
+        model = OneClassSVM(
+            kernel='linear', nu=self.nu, tol=self.tol, verbose=self.verbose
+        )
+        model.fit(X)
+        return model.coef_.flatten(), model.intercept_
+
+    def fit(self, X, y=None):
+        if self.solver == 'libsvm':
+            coef, intercept = self._fit_libsvm(X)
+        elif self.solver == 'liblinear':
+            coef, intercept = self._fit_liblinear(X)
+        self.coef_, self.intercept_ = coef, intercept
 
     def decision_function(self, X):
         check_is_fitted(self)
@@ -59,7 +73,7 @@ class OneClassLinearSVC(BaseEstimator, OutlierMixin):
 
     @classmethod
     def load_model_info(cls, model_info):
-        model = OneClassLinearSVC(**model_info["params"])
+        model = LinearOneClassSVM(**model_info["params"])
         model.intercept_ = model_info["intercept"]
         model.coef_ = load_array(model_info["coef"])
         return model
