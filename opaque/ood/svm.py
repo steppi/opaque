@@ -15,7 +15,7 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
     def __init__(
             self,
             nu=0.5,
-            tol=0.001,
+            tol=1e-3,
             solver='libsvm',
             verbose=False,
     ):
