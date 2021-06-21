@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import issparse
 from sklearn.svm import OneClassSVM
 from sklearn.base import BaseEstimator, OutlierMixin
 from sklearn.utils.extmath import safe_sparse_dot
@@ -32,14 +33,14 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
         param = parameter(params)
         model = train(prob, param)
         W, rho = model.get_decfun()
-        return np.array(W), rho
+        return np.array([W]), rho
 
     def _fit_libsvm(self, X):
         model = OneClassSVM(
             kernel='linear', nu=self.nu, tol=self.tol, verbose=self.verbose
         )
         model.fit(X)
-        return model.coef_.flatten(), model.intercept_
+        return model.coef_, model.intercept_
 
     def fit(self, X, y=None):
         if self.solver == 'libsvm':
@@ -69,7 +70,10 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
 
     def feature_scores(self):
         check_is_fitted(self)
-        return self.coef_
+        if not issparse(self.coef_):
+            return -self.coef_ / self.intercept_
+        else:
+            return -self.coef_.toarray() / self.intercept_
 
     @classmethod
     def load_model_info(cls, model_info):
