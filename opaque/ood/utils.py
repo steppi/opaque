@@ -19,14 +19,20 @@ class NestedKFold:
     def __init__(self, outter_splitter=None, inner_splitter=None):
         if outter_splitter is None:
             self.outter_splitter = StratifiedKFold()
+        else:
+            self.outter_splitter = outter_splitter
         if inner_splitter is None:
             self.inner_splitter = StratifiedKFold()
+        else:
+            self.inner_splitter = inner_splitter
 
-    def split(self, X, y):
+    def split(self, X, y=None):
         outter_splits = self.outter_splitter.split(X, y)
         for outter_train, outter_test in outter_splits:
-            inner_splits = self.inner_splitter.split(X[outter_train],
-                                                     y[outter_train])
+            inner_splits = self.inner_splitter.split(
+                outter_train,
+                None if y is None else y[outter_train],
+            )
             inner_splits = (
                 (outter_train[inner_train], outter_train[inner_test])
                 for inner_train, inner_test in inner_splits
