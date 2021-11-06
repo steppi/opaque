@@ -44,7 +44,7 @@ cdef double beta_pdf(double theta, double p, double q):
 @cython.cdivision(True)
 cdef inline double coefficient(int n, double p, double q, double x):
     """Return nth term of continued fraction expansion used in betainc calc
-    
+
     Continued fraction expansion is for hyp2f1(p + q, 1, p + 1, x)
     """
     cdef int m
@@ -120,9 +120,9 @@ cdef double log_diff(double log_p, double log_q):
     return log_p + log1p(-exp(log_q - log_p))
 
 
-cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
-                                     double sensitivity,
-                                     double specificity):
+cdef double log_prevalence_cdf_fixed(
+        double theta, int n, int t, double sensitivity, double specificity
+):
     """Returns log of prevalence cdf for fixed sensitivity and specificity."""
     cdef bool anti_test
     cdef double c1, c2, logY, log_delta
@@ -142,9 +142,9 @@ cdef double log_prevalence_cdf_fixed(double theta, int n, int t,
     return output if not anti_test else log_diff(0, output)
 
 
-cdef double _prevalence_cdf_fixed(double theta, int n, int t,
-                                  double sensitivity,
-                                  double specificity):
+cdef double _prevalence_cdf_fixed(
+        double theta, int n, int t, double sensitivity, double specificity
+):
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
     return exp(log_prevalence_cdf_fixed(theta, n, t, sensitivity, specificity))
 
@@ -161,7 +161,7 @@ cdef class Params:
     """
     cdef public int n, t
     cdef public double theta, sens_a, sens_b, spec_a, spec_b
-    
+
     def __init__(self, theta, n, t, sens_a, sens_b, spec_a, spec_b):
         self.theta = theta
         self.n = n
@@ -180,9 +180,15 @@ def integrand_cdf(double sens, double spec, Params p):
 
 
 @cython.cdivision(True)
-cdef double _prevalence_cdf(double theta, int n, int t,
-                            double sens_a, double sens_b,
-                            double spec_a, double spec_b):
+cdef double _prevalence_cdf(
+        double theta,
+        int n,
+        int t,
+        double sens_a,
+        double sens_b,
+        double spec_a,
+        double spec_b
+):
     """Compute marginalization integral with quadrature."""
     cdef double output, error
     if theta == 0.0:
@@ -200,10 +206,16 @@ cdef double _prevalence_cdf(double theta, int n, int t,
         return output
 
 
-cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
-                                   double sens_a, double sens_b,
-                                   double spec_a, double spec_b,
-                                   int num_samples):
+cdef double _prevalence_cdf_mc_est(
+        double theta,
+        int n,
+        int t,
+        double sens_a,
+        double sens_b,
+        double spec_a,
+        double spec_b,
+        int num_samples
+):
     """Computes marginalization integral with importance sampling."""
     cdef int i
     cdef bitgen_t *rng
@@ -240,9 +252,17 @@ cdef double _prevalence_cdf_mc_est(double theta, int n, int t,
     return result/num_samples
 
 
-def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
-                   float spec_a, float spec_b, mc_est: bool=True,
-                   num_mc_samples: int=5000) -> float:
+def prevalence_cdf(
+        float theta,
+        int n,
+        int t,
+        float sens_a,
+        float sens_b,
+        float spec_a,
+        float spec_b,
+        mc_est: bool = True,
+        num_mc_samples: int = 5000
+) -> float:
     """Returns prevalence_cdf as derived in Diggle, 2011 [0].
 
     Parameters
@@ -282,8 +302,9 @@ def prevalence_cdf(float theta, int n, int t, float sens_a, float sens_b,
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
     if mc_est:
-        return _prevalence_cdf_mc_est(theta, n, t, sens_a, sens_b, spec_a, spec_b,
-                                      num_mc_samples)
+        return _prevalence_cdf_mc_est(
+            theta, n, t, sens_a, sens_b, spec_a, spec_b, num_mc_samples
+        )
     else:
         return _prevalence_cdf(theta, n, t, sens_a, sens_b, spec_a, spec_b)
 
@@ -304,27 +325,46 @@ ctypedef struct inverse_cdf_params:
 cdef double f1(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
     cdef double y
-    return _prevalence_cdf(theta, params.n, params.t,
-                           params.sens_a, params.sens_b,
-                           params.spec_a, params.spec_b) - params.val
-
+    return _prevalence_cdf(
+        theta,
+        params.n,
+        params.t,
+        params.sens_a,
+        params.sens_b,
+        params.spec_a,
+        params.spec_b
+    ) - params.val
 
 
 @cython.cdivision(True)
 cdef double f2(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
-    return _prevalence_cdf_mc_est(theta, params.n, params.t,
-                                  params.sens_a, params.sens_b,
-                                  params.spec_a, params.spec_b,
-                                  params.num_mc_samples) - params.val
+    return _prevalence_cdf_mc_est(
+        theta,
+        params.n,
+        params.t,
+        params.sens_a,
+        params.sens_b,
+        params.spec_a,
+        params.spec_b,
+        params.num_mc_samples
+    ) - params.val
 
 
 ctypedef double (*function_1d)(double, void*)
 
 
-cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
-                         double spec_a, double spec_b, int num_mc_samples,
-                         function_1d func):
+cdef double _inverse_cdf(
+        double x,
+        int n,
+        int t,
+        double sens_a,
+        double sens_b,
+        double spec_a,
+        double spec_b,
+        int num_mc_samples,
+        function_1d func
+):
     cdef inverse_cdf_params args
     if x == 0.0:
         return 0.0
@@ -338,10 +378,17 @@ cdef double _inverse_cdf(double x, int n, int t, double sens_a, double sens_b,
     return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
 
-def inverse_prevalence_cdf(x: float, n: int, t: int, sens_a: float,
-                           sens_b: float, spec_a: float, spec_b: float,
-                           mc_est: bool=True,
-                           num_mc_samples: int=5000) -> float:
+def inverse_prevalence_cdf(
+        x: float,
+        n: int,
+        t: int,
+        sens_a: float,
+        sens_b: float,
+        spec_a: float,
+        spec_b: float,
+        mc_est: bool = True,
+        num_mc_samples: int = 5000
+) -> float:
     """Returns inverse of prevalence cdf evaluated at x for param values
 
     As derived in Diggle 2011 [0].
@@ -401,21 +448,39 @@ cdef double interval_width(double x, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
     cdef double left, right
     func = f2 if params.mc_est else f1
-    left = _inverse_cdf(x, params.n, params.t,
-                        params.sens_a, params.sens_b,
-                        params.spec_a, params.spec_b,
-                        params.num_mc_samples, func)
-    right = _inverse_cdf(x + params.val, params.n, params.t,
-                         params.sens_a, params.sens_b,
-                         params.spec_a, params.spec_b,
-                         params.num_mc_samples, func)
+    left = _inverse_cdf(
+        x,
+        params.n,
+        params.t,
+        params.sens_a,
+        params.sens_b,
+        params.spec_a,
+        params.spec_b,
+        params.num_mc_samples,
+        func
+    )
+    right = _inverse_cdf(
+        x + params.val,
+        params.n,
+        params.t,
+        params.sens_a,
+        params.sens_b,
+        params.spec_a,
+        params.spec_b,
+        params.num_mc_samples,
+        func
+    )
     return right - left
 
 
-cdef (double, double) golden_section_search(function_1d func, double left,
-                                            double right, double x_tol,
-                                            double y_tol,
-                                            void *args):
+cdef (double, double) golden_section_search(
+        function_1d func,
+        double left,
+        double right,
+        double x_tol,
+        double y_tol,
+        void *args
+):
     """Returns a minimum obtained by func over the interval (left, right)
 
     Returns the minimum value of f(x), contrary to the typical practice
@@ -447,10 +512,17 @@ cdef (double, double) golden_section_search(function_1d func, double left,
             func_at_x3 = func(x3, args)
 
 
-def highest_density_interval(n: int, t: int, sens_a: float, sens_b: float,
-                             spec_a: float, spec_b: float, alpha: float=0.1,
-                             mc_est: bool=True,
-                             num_mc_samples: int=5000) -> tuple[float, float]:
+def highest_density_interval(
+        n: int,
+        t: int,
+        sens_a: float,
+        sens_b: float,
+        spec_a: float,
+        spec_b: float,
+        alpha: float = 0.1,
+        mc_est: bool = True,
+        num_mc_samples: int = 5000
+) -> tuple[float, float]:
     """Returns highest density prevalence credible interval [1].
 
     Interval of posterior distribution of minimal width that captures
@@ -513,9 +585,17 @@ def highest_density_interval(n: int, t: int, sens_a: float, sens_b: float,
     return (max(0.0, left), min(right, 1.0))
 
 
-def equal_tailed_interval(n: int, t: int, sens_a: float, sens_b: float,
-                          spec_a: float, spec_b: float, alpha: float=0.1,
-                          mc_est: bool=True, num_mc_samples: int=5000):
+def equal_tailed_interval(
+        n: int,
+        t: int,
+        sens_a: float,
+        sens_b: float,
+        spec_a: float,
+        spec_b: float,
+        alpha: float = 0.1,
+        mc_est: bool = True,
+        num_mc_samples: int = 5000
+):
     """Returns equal tailed prevalence credible interval [1].
 
     Interval of posterior distribution (left, right) such that
@@ -562,7 +642,27 @@ def equal_tailed_interval(n: int, t: int, sens_a: float, sens_b: float,
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
     func = f2 if mc_est else f1
-    return (_inverse_cdf(alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
-                         num_mc_samples, func),
-            _inverse_cdf(1 - alpha/2, n, t, sens_a, sens_b, spec_a, spec_b,
-                         num_mc_samples, func))
+    return (
+        _inverse_cdf(
+            alpha/2,
+            n,
+            t,
+            sens_a,
+            sens_b,
+            spec_a,
+            spec_b,
+            num_mc_samples,
+            func
+        ),
+        _inverse_cdf(
+            1 - alpha/2,
+            n,
+            t,
+            sens_a,
+            sens_b,
+            spec_a,
+            spec_b,
+            num_mc_samples,
+            func
+        )
+    )
