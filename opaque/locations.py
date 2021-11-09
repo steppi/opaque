@@ -10,5 +10,8 @@ if OPAQUE_HOME is None:
 BACKGROUND_DICTIONARY_PATH = os.path.join(
     OPAQUE_HOME, "entrez_pubmed_dictionary.pkl"
 )
+NEGATIVE_SET_PATH = os.path.join(
+    OPAQUE_HOME, "negative_set.json"
+)
 TEST_DATA_LOCATION = os.path.join(here, "tests", "data")
 S3_BUCKET_URL = "https://adeft.s3.amazonaws.com/opaque"
