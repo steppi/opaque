@@ -78,6 +78,7 @@ def train_anomaly_detector(
     ad_model.fit(train_texts)
     return {
         "model": ad_model.get_model_info(),
-        "stats": stats,
+        "train_stats": stats,
         "best_params": {"nu": best_nu, "max_features": best_max_features},
+        "num_training_texts": len(train_texts),
     }
