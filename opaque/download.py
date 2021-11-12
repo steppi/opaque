@@ -10,9 +10,13 @@ from opaque.locations import S3_BUCKET_URL
 
 
 def download_background_dictionary():
+    compressed_path = BACKGROUND_DICTIONARY_PATH + ".xz"
     wget.download(
-        url=f"{S3_BUCKET_URL}/entrez_pubmed_dictionary.pkl",
-        out=BACKGROUND_DICTIONARY_PATH
+        url=f"{S3_BUCKET_URL}/background_dictionary.pkl.xz",
+        out=compressed_path,
+    )
+    subprocess.run(
+        ["xz", "-v", "--decompress", "-1", compressed_path]
     )
 
 
@@ -34,7 +38,12 @@ if __name__ == "__main__":
     force = args.force
     if not os.path.exists(OPAQUE_HOME):
         os.makedirs(OPAQUE_HOME)
-    if force or not os.path.exists(BACKGROUND_DICTIONARY_PATH):
+    if force:
+        if os.path.exists(BACKGROUND_DICTIONARY_PATH):
+            os.remove(BACKGROUND_DICTIONARY_PATH)
+        if os.path.exists(NEGATIVE_SET_PATH):
+            os.remove(NEGATIVE_SET_PATH)
+    if not os.path.exists(BACKGROUND_DICTIONARY_PATH):
         download_background_dictionary()
-    if force or not os.path.exists(NEGATIVE_SET_PATH):
+    if not os.path.exists(NEGATIVE_SET_PATH):
         download_negative_set()

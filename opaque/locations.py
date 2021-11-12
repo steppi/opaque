@@ -8,7 +8,7 @@ OPAQUE_HOME = os.environ.get("OPAQUE_HOME")
 if OPAQUE_HOME is None:
     OPAQUE_HOME = os.path.join(user_data_dir(), 'opaque')
 BACKGROUND_DICTIONARY_PATH = os.path.join(
-    OPAQUE_HOME, "entrez_pubmed_dictionary.pkl"
+    OPAQUE_HOME, "background_dictionary.pkl"
 )
 NEGATIVE_SET_PATH = os.path.join(
     OPAQUE_HOME, "negative_set.json"
