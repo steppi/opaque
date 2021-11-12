@@ -1,5 +1,9 @@
 from sklearn.pipeline import Pipeline
 
+from opaque.locations import BACKGROUND_DICTIONARY_PATH
+from opaque.nlp.featurize import BaselineTfidfVectorizer
+from opaque.ood.svm import LinearOneClassSVM
+
 
 class GroundingAnomalyDetector:
     def __init__(self, featurizer, out_of_dist_classifier, memory=None):
@@ -32,13 +36,17 @@ class GroundingAnomalyDetector:
     @classmethod
     def load_model_info(
             cls,
-            featurizer_class,
-            out_of_dist_classifier_class,
-            featurizer_path,
-            model_info
+            model_info,
+            featurizer_class=None,
+            out_of_dist_classifier_class=None,
+            featurizer_path=BACKGROUND_DICTIONARY_PATH,
     ):
+        if featurizer_class is None:
+            featurizer_class = BaselineTfidfVectorizer
+        if out_of_dist_classifier_class is None:
+            out_of_dist_classifier_class = LinearOneClassSVM
         featurizer = featurizer_class.load_model_info(
-            featurizer_path, model_info["featurize"]
+            model_info["featurize"], path=featurizer_path
         )
         out_of_dist = out_of_dist_classifier_class.load_model_info(
             model_info["ood"]

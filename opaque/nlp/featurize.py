@@ -63,7 +63,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         dictionary = Dictionary.load(self.path)
         # Filter out tokens by their frequency.
         dictionary.filter_extremes(
-            no_above=self.no_above, no_below=self.no_below
+            no_above=self.no_above, no_below=self.no_below, keep_n=None
         )
         baseline_tfidf_model = TfidfModel(
             dictionary=dictionary, **self.tfidf_params
@@ -161,7 +161,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         ]
 
     @classmethod
-    def load_model_info(cls, path, model_info):
+    def load_model_info(cls, model_info, path=BACKGROUND_DICTIONARY_PATH):
         tokens = model_info["tokens"]
         tfidf = BaselineTfidfVectorizer(path)
         dictionary = Dictionary.load(path)
