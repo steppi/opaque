@@ -9,6 +9,8 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from opaque.locations import BACKGROUND_DICTIONARY_PATH
+
 logging.getLogger("gensim").setLevel("WARNING")
 
 
@@ -17,7 +19,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    dict_path : str
+    path : str
         Path to pickle serialized gensim Dictionary
     max_features_per_class : Optional[int|float|callable]
         Maximum number of features taken per class in the training data.
@@ -28,7 +30,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
 
     def __init__(
             self,
-            path,
+            path=BACKGROUND_DICTIONARY_PATH,
             no_above=0.5,
             no_below=5,
             max_features_per_class=None,
@@ -61,7 +63,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         dictionary = Dictionary.load(self.path)
         # Filter out tokens by their frequency.
         dictionary.filter_extremes(
-            no_above=self.no_above, no_below=self.no_below
+            no_above=self.no_above, no_below=self.no_below, keep_n=None
         )
         baseline_tfidf_model = TfidfModel(
             dictionary=dictionary, **self.tfidf_params
@@ -159,7 +161,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
         ]
 
     @classmethod
-    def load_model_info(cls, path, model_info):
+    def load_model_info(cls, model_info, path=BACKGROUND_DICTIONARY_PATH):
         tokens = model_info["tokens"]
         tfidf = BaselineTfidfVectorizer(path)
         dictionary = Dictionary.load(path)
