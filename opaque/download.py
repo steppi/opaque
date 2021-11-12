@@ -10,13 +10,9 @@ from opaque.locations import S3_BUCKET_URL
 
 
 def download_background_dictionary():
-    compressed_path = BACKGROUND_DICTIONARY_PATH + ".xz"
     wget.download(
-        url=f"{S3_BUCKET_URL}/background_dictionary.pkl.xz",
-        out=compressed_path,
-    )
-    subprocess.run(
-        ["xz", "-v", "--decompress", "-1", compressed_path]
+        url=f"{S3_BUCKET_URL}/{os.path.basename(BACKGROUND_DICTIONARY_PATH)}",
+        out=BACKGROUND_DICTIONARY_PATH,
     )
 
 
