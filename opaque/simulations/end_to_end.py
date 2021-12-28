@@ -1,30 +1,30 @@
-import math
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool
 from scipy.special import expit
 from scipy.stats import beta
-from opaque.beta_regression import BetaRegressor
+from scipy.stats import powerlaw
+from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.stats import equal_tailed_interval, KL_beta
-from opaque.simulations.prevalence import run_trial_for_theta
 
 
 class EndtoEndSimulator:
     def __init__(
-        self,
-        sens_coefs_mean,
-        sens_coefs_disp,
-        spec_coefs_mean,
-        spec_coefs_disp,
-        sens_noise_mean=0.0,
-        sens_noise_disp=0.0,
-        spec_noise_mean=0.0,
-        spec_noise_disp=0.0,
-        cov=None,
-        n_mean=6.0,
-        n_sigma=1.0,
-        random_state=None,
-        n_jobs=1,
+            self,
+            sens_coefs_mean,
+            sens_coefs_disp,
+            spec_coefs_mean,
+            spec_coefs_disp,
+            sens_noise_mean=0.0,
+            sens_noise_disp=0.0,
+            spec_noise_mean=0.0,
+            spec_noise_disp=0.0,
+            cov=None,
+            n_shape=0.2,
+            n_loc=30,
+            n_scale=1000,
+            random_state=None,
+            n_jobs=1,
     ):
         if cov is None:
             cov = np.diag(np.full(len(sens_coefs_mean) - 1, 1.0))
@@ -48,8 +48,9 @@ class EndtoEndSimulator:
         self.spec_noise_disp = spec_noise_disp
         self.cov = cov
         self.num_covariates = cov.shape[0]
-        self.n_mean = n_mean
-        self.n_sigma = n_sigma
+        self.n_shape = n_shape
+        self.n_loc = n_loc
+        self.n_scale = n_scale
         self.n_jobs = n_jobs
 
     def generate_data(self, size):
@@ -81,11 +82,23 @@ class EndtoEndSimulator:
         spec = spec_prior.rvs()
         sens.shape = sens_mu.shape = sens_nu.shape = (size, 1)
         spec.shape = spec_mu.shape = spec_nu.shape = (size, 1)
+        N_dist = powerlaw(a=self.n_shape, loc=self.n_loc, scale=self.n_scale)
+        N_dist.random_state = self.random_state
+        N_inlier = np.floor(N_dist.rvs(size=sens.shape)).astype(int)
+        N_outlier = np.floor(N_dist.rvs(size=sens.shape)).astype(int)
+        K_inlier = self.random_state.binomial(N_inlier, p=spec)
+        K_outlier = self.random_state.binomial(N_outlier, p=sens)
+        theta = N_outlier / (N_inlier + N_outlier)
         data = np.hstack(
             [
                 X[:, 1:],
                 sens,
                 spec,
+                N_inlier,
+                K_inlier,
+                N_outlier,
+                K_outlier,
+                theta,
                 sens_mu,
                 sens_nu,
                 spec_mu,
@@ -102,6 +115,11 @@ class EndtoEndSimulator:
             + [
                 "sens",
                 "spec",
+                "N_inlier",
+                "K_inlier",
+                "N_outlier",
+                "K_outlier",
+                "theta",
                 "sens_mu",
                 "sens_nu",
                 "spec_mu",
@@ -114,45 +132,24 @@ class EndtoEndSimulator:
         )
         return data
 
-    def simulate_anomaly_detection(self, sens_list, spec_list):
-        points = (
-            (
-                self.random_state.random_sample(),
-                sens,
-                spec,
-                math.floor(
-                    self.random_state.lognormal(
-                        mean=self.n_mean,
-                        sigma=self.n_sigma
-                    )
-                ),
-                np.random.RandomState(self.random_state.randint(10 ** 6)),
-            )
-            for sens, spec in zip(sens_list, spec_list)
-        )
-        with Pool(self.n_jobs) as pool:
-            results = pool.starmap(run_trial_for_theta, points)
-        return results
-
     def run(self, size_train=1000, size_test=200):
         data_train = self.generate_data(size=size_train)
         data_test = self.generate_data(size=size_test)
         X_train = data_train.iloc[:, : self.num_covariates].values
         X_test = data_test.iloc[:, : self.num_covariates].values
-        sens_train = data_train["sens"].values
-        spec_train = data_train["spec"].values
-        sens_test = data_test["sens"].values
-        spec_test = data_test["spec"].values
-        br = BetaRegressor()
+        sens_train = data_train[['N_outlier', 'K_outlier']].values
+        spec_train = data_train[['N_inlier', 'K_inlier']].values
+        br = BetaBinomialRegressor()
         br.fit(X_train, sens_train)
         sens_shape = br.predict_shape_params(X_test)
         br.fit(X_train, spec_train)
         spec_shape = br.predict_shape_params(X_test)
-        ad = self.simulate_anomaly_detection(sens_test, spec_test)
         points = []
         rows = []
-        for i in range(len(ad)):
-            n, t, theta = ad[i]
+        for i, row in data_test.iterrows():
+            n = row['N_outlier'] + row['N_inlier']
+            t = row['K_outlier'] + row['N_inlier'] - row['K_inlier']
+            theta = row['theta']
             sens_a_est, sens_b_est = sens_shape[i, :]
             spec_a_est, spec_b_est = spec_shape[i, :]
             sens_a, sens_b = data_test.iloc[i, -4], data_test.iloc[i, -3]
