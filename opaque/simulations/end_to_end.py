@@ -141,9 +141,9 @@ class EndtoEndSimulator:
         spec_train = data_train[['N_inlier', 'K_inlier']].values
         br = BetaBinomialRegressor()
         br.fit(X_train, sens_train)
-        sens_shape = br.predict_shape_params(X_test)
+        sens_shape, _ = br.predict_shape_params(X_test)
         br.fit(X_train, spec_train)
-        spec_shape = br.predict_shape_params(X_test)
+        spec_shape, _ = br.predict_shape_params(X_test)
         points = []
         rows = []
         for i, row in data_test.iterrows():
