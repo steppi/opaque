@@ -76,3 +76,21 @@ def KL_beta(a1, b1, a2, b2):
     output -= (a2 - a1) * digamma(a1) + (b2 - b1) * digamma(b1)
     output += (a2 - a1 + b2 - b1) * digamma(a1 + b1)
     return output
+
+
+def binomial_score(y_true, y_pred):
+    assert y_true.shape == y_pred.shape
+    assert y_true.shape[1] == 2
+    # Require all samples to have at least one trial
+    assert np.all((y_true[:, 0] > 0) & (y_pred[:, 0] > 0))
+    N_true, K_true = y_true[:, 0], y_true[:, 1]
+    N_pred, K_pred = y_pred[:, 0], y_pred[:, 1]
+    # Renormalize predictions to have same number of trials as true.
+    # This makes it convenient to use in GridSearchCV, where it's not easy
+    # to pass the number of trials to predict.
+    if not np.all(N_true == N_pred):
+        K_pred = K_pred * N_true / N_pred
+    p_hat_true = (K_true + 1) / (N_true + 2)
+    var = N_true * p_hat_true * (1 - p_hat_true)
+    residuals = (K_true - K_pred)**2 / var
+    return np.sum(residuals) / len(residuals)
