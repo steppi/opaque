@@ -200,7 +200,7 @@ class ShapeParamResults(NamedTuple):
     spec_beta_var: float
 
 
-class DiagnosticTestPriorPredictor:
+class DiagnosticTestPriorModel:
     def __init__(
             self,
             sens_pipeline,
