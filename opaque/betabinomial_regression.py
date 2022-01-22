@@ -6,7 +6,9 @@ from typing import NamedTuple
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
-from opaque.ood.utils import AnyMethodPipeline
+from opaque.utils import AnyMethodPipeline
+from opaque.utils import dump_trace
+from opaque.utils import load_trace
 
 
 class BetaBinomialRegressor(BaseEstimator, RegressorMixin):

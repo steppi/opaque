@@ -9,7 +9,7 @@ from sklearn.utils.validation import check_is_fitted
 from liblinear.liblinearutil import parameter, problem, train
 
 
-from opaque.ood.utils import load_array, serialize_array
+from opaque.utils import load_array, serialize_array
 
 
 class LinearOneClassSVM(BaseEstimator, OutlierMixin):

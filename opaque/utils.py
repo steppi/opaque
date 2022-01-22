@@ -1,8 +1,10 @@
+import arviz
 import io
 import numpy as np
 from scipy import sparse
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
+import tempfile
 
 
 class AnyMethodPipeline(Pipeline):
@@ -98,3 +100,26 @@ def load_array(data):
     if sparse.issparse(X):
         return X
     raise ValueError("Input is not valid npz data.")
+
+
+def dump_trace(trace):
+    """Dump an arviz trace to a string of bytes."""
+    with tempfile.NamedTemporaryFile() as tf:
+        trace.to_netcdf(tf.name)
+        tf.seek(0)
+        result = tf.read().decode('latin-1')
+    return result
+
+
+def load_trace(data):
+    """Load an arviz trace from a string of bytes produced by dump_trace."""
+    original_arviz_data_load = arviz.rcParams['data.load']
+    arviz.rcParams['data.load'] = 'eager'
+    with tempfile.NamedTemporaryFile() as tf:
+        tf.write(data.encode('latin-1'))
+        tf.seek(0)
+        trace = arviz.from_netcdf(tf.name)
+    arviz.rcParams['data.load'] = original_arviz_data_load
+    if isinstance(trace, arviz.data.inference_data.InferenceData):
+        return trace
+    raise ValueError("Input is not valid net_cdf data.")
