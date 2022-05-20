@@ -70,6 +70,7 @@ setup(
         "pymc3==3.11.0",
         "numba",
         "liblinear-official",
+        "xarray==0.20.2",
     ],
     extras_require={"test": ["pytest", "pytest-cov", "mpmath"]},
     ext_modules=extensions,
