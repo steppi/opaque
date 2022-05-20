@@ -113,6 +113,9 @@ def dump_trace(trace):
 
 def load_trace(data):
     """Load an arviz trace from a string of bytes produced by dump_trace."""
+    # First check if data is a trace instead of byte serialized trace.
+    if isinstance(data, arviz.data.inference_data.InferenceData):
+        return data
     original_arviz_data_load = arviz.rcParams['data.load']
     arviz.rcParams['data.load'] = 'eager'
     with tempfile.NamedTemporaryFile() as tf:
