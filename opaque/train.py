@@ -107,7 +107,7 @@ def train_anomaly_detector(
         prior_model = DiagnosticTestPriorModel.load(
             DIAGNOSTIC_TEST_PRIOR_MODEL_PATH,
         )
-        sp = prior_model.predict_shape_params(**features)
+        sp = prior_model.predict_shape_params(*features)
         shape_params = {
             "sens_alpha": sp.sens_alpha,
             "sens_beta": sp.sens_beta,

@@ -6,7 +6,9 @@ from typing import NamedTuple
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
-from opaque.ood.utils import AnyMethodPipeline
+from opaque.utils import AnyMethodPipeline
+from opaque.utils import dump_trace
+from opaque.utils import load_trace
 
 
 class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
@@ -170,7 +172,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         check_is_fitted(self)
         return {
             'model': self.model_,
-            'trace': self.trace_,
+            'trace': dump_trace(self.trace_),
             'params': self.get_params(),
             'sampler_args': self.sampler_args,
             'mean_use_cols': self.mean_use_cols,
@@ -183,7 +185,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         sampler_args = model_info['sampler_args']
         instance = cls(**params, **sampler_args)
         instance.model_ = model_info['model']
-        instance.trace_ = model_info['trace']
+        instance.trace_ = load_trace(model_info['trace'])
         instance.mean_use_cols = model_info['mean_use_cols']
         instance.disp_use_cols = model_info['disp_use_cols']
         return instance
