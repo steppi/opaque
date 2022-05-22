@@ -149,8 +149,38 @@ cdef double _prevalence_cdf_fixed(
     return exp(log_prevalence_cdf_fixed(theta, n, t, sensitivity, specificity))
 
 
+@cython.cdivision(True)
+cdef double _cond_pos_prevalence_cdf_fixed(
+        double psi, int n, int t, double sensitivity, double specificity
+):
+    cdef:
+        double c1, c2, theta
+    c1, c2 = 1 - specificity, sensitivity + specificity - 1
+    theta = (1 - c1)*psi / (1 - sensitivity + c2*psi)
+    return _prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+
+
+@cython.cdivision(True)
+cdef double _cond_neg_prevalence_cdf_fixed(
+        double phi, int n, int t, double sensitivity, double specificity
+):
+    cdef:
+        double c1, c2, theta
+    c1, c2 = 1 - specificity, sensitivity + specificity - 1
+    theta = c1*phi / (c1 + c2 - c2*phi)
+    return _prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+
+
 def prevalence_cdf_fixed(theta, n, t, sensitivity, specificity):
     return _prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+
+
+def cond_pos_prevalence_cdf_fixed(psi, n, t, sensitivity, specificity):
+    return _cond_pos_prevalence_cdf_fixed(psi, n, t, sensitivity, specificity)
+
+
+def cond_neg_prevalence_cdf_fixed(psi, n, t, sensitivity, specificity):
+    return _cond_neg_prevalence_cdf_fixed(psi, n, t, sensitivity, specificity)
 
 
 cdef class Params:
