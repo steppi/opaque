@@ -367,7 +367,8 @@ def highest_density_interval(
         spec_a: float,
         spec_b: float,
         alpha: float = 0.1,
-        num_mc_samples: int = 5000
+        num_mc_samples: int = 5000,
+        mode: str = "unconditional",
 ) -> tuple[float, float]:
     """Returns highest density prevalence credible interval [1].
 
@@ -410,16 +411,28 @@ def highest_density_interval(
     cdef double left, right
     cdef double argmin, min_
     cdef inverse_cdf_params args
+    cdef prevalence_func pfunc
+    if mode == "unconditional":
+        pfunc = prevalence_cdf_fixed
+    elif mode == "positive":
+        pfunc = prevalence_cdf_cond_pos_fixed
+    elif mode == "negative":
+        pfunc = prevalence_cdf_cond_neg_fixed
+    else:
+        raise ValueError(
+            'mode should be one of "unconditional", "positive", "negative", '
+            f'got "{mode}"'
+        )
     args.n, args.t = n, t
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = 1 - alpha
     args.num_mc_samples = num_mc_samples
-    args.pfunc = prevalence_cdf_fixed
+    args.pfunc = pfunc
     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
                                                     1e-2, 1e-2, &args)
     left = inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
-                       num_mc_samples, prevalence_cdf_fixed)
+                       num_mc_samples, pfunc)
     right = left + min_width
     return (max(0.0, left), min(right, 1.0))
 
@@ -432,7 +445,8 @@ def equal_tailed_interval(
         spec_a: float,
         spec_b: float,
         alpha: float = 0.1,
-        num_mc_samples: int = 5000
+        num_mc_samples: int = 5000,
+        mode: str = "unconditional",
 ):
     """Returns equal tailed prevalence credible interval [1].
 
@@ -473,6 +487,18 @@ def equal_tailed_interval(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
+    cdef prevalence_func pfunc
+    if mode == "unconditional":
+        pfunc = prevalence_cdf_fixed
+    elif mode == "positive":
+        pfunc = prevalence_cdf_cond_pos_fixed
+    elif mode == "negative":
+        pfunc = prevalence_cdf_cond_neg_fixed
+    else:
+        raise ValueError(
+            'mode should be one of "unconditional", "positive", "negative", '
+            f'got "{mode}"'
+        )
     return (
         inverse_cdf(
             alpha/2,
@@ -483,7 +509,7 @@ def equal_tailed_interval(
             spec_a,
             spec_b,
             num_mc_samples,
-            prevalence_cdf_fixed,
+            pfunc,
         ),
         inverse_cdf(
             1 - alpha/2,
@@ -494,8 +520,76 @@ def equal_tailed_interval(
             spec_a,
             spec_b,
             num_mc_samples,
-            prevalence_cdf_fixed,
+            pfunc,
         )
+    )
+
+
+def prevalence_cdf_wrapper(
+        float theta,
+        int n,
+        int t,
+        float sens_a,
+        float sens_b,
+        float spec_a,
+        float spec_b,
+        num_mc_samples: int = 5000,
+        mode: str = "unconditional",
+) -> float:
+    """Returns prevalence_cdf as derived in Diggle, 2011 [0].
+
+    Parameters
+    ----------
+    theta : float
+        Value of prevalence at which to calculate cdf.
+    n : int
+        Number of samples on which diagnostic test has been run.
+    t : int
+        Number of positives out of all samples.
+    sens_a : float
+        First shape parameter of beta prior for sensitivity.
+    sens_b : float
+        Second shape parameter of beta prior for sensitivity.
+    spec_a : float
+        First shape parameter of beta prior for specificity.
+    spec_b : float
+        Second shape parameter of beta prior for specificity.
+    num_mc_samples : Optional[int]
+       Number of samples to take when importance sampling.
+
+    Returns
+    -------
+    float
+        Value of cdf at theta for given parameters.
+
+    References
+    ----------
+    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
+        Epidemiology Research International, vol. 2011, Article ID 608719,
+        5 pages, 2011. https://doi.org/10.1155/2011/608719
+    """
+    cdef prevalence_func pfunc
+    if mode == "unconditional":
+        pfunc = prevalence_cdf_fixed
+    elif mode == "positive":
+        pfunc = prevalence_cdf_cond_pos_fixed
+    elif mode == "negative":
+        pfunc = prevalence_cdf_cond_neg_fixed
+    else:
+        raise ValueError(
+            'mode should be one of "unconditional", "positive", "negative", '
+            f'got "{mode}"'
+        )
+    return prevalence_beta_sample(
+        theta,
+        n,
+        t,
+        sens_a,
+        sens_b,
+        spec_a,
+        spec_b,
+        num_mc_samples,
+        pfunc,
     )
 
 
@@ -530,57 +624,3 @@ def prevalence_cdf_cond_pos_fixed_wrapper(psi, n, t, sensitivity, specificity):
 def prevalence_cdf_cond_neg_fixed_wrapper(psi, n, t, sensitivity, specificity):
     return prevalence_cdf_cond_neg_fixed(psi, n, t, sensitivity, specificity)
 
-
-def prevalence_cdf_wrapper(
-        float theta,
-        int n,
-        int t,
-        float sens_a,
-        float sens_b,
-        float spec_a,
-        float spec_b,
-        num_mc_samples: int = 5000
-) -> float:
-    """Returns prevalence_cdf as derived in Diggle, 2011 [0].
-
-    Parameters
-    ----------
-    theta : float
-        Value of prevalence at which to calculate cdf.
-    n : int
-        Number of samples on which diagnostic test has been run.
-    t : int
-        Number of positives out of all samples.
-    sens_a : float
-        First shape parameter of beta prior for sensitivity.
-    sens_b : float
-        Second shape parameter of beta prior for sensitivity.
-    spec_a : float
-        First shape parameter of beta prior for specificity.
-    spec_b : float
-        Second shape parameter of beta prior for specificity.
-    num_mc_samples : Optional[int]
-       Number of samples to take when importance sampling.
-
-    Returns
-    -------
-    float
-        Value of cdf at theta for given parameters.
-
-    References
-    ----------
-    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
-        Epidemiology Research International, vol. 2011, Article ID 608719,
-        5 pages, 2011. https://doi.org/10.1155/2011/608719
-    """
-    return prevalence_beta_sample(
-        theta,
-        n,
-        t,
-        sens_a,
-        sens_b,
-        spec_a,
-        spec_b,
-        num_mc_samples,
-        prevalence_cdf_fixed,
-    )
