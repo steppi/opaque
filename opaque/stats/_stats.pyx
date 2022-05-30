@@ -193,10 +193,11 @@ ctypedef struct inverse_cdf_params:
     double spec_a
     double spec_b
     double val
+    prevalence_func pfunc
 
 
 @cython.cdivision(True)
-cdef double f2(double theta, void *args):
+cdef double f(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
     return prevalence_beta_sample(
         theta,
@@ -207,7 +208,7 @@ cdef double f2(double theta, void *args):
         params.spec_a,
         params.spec_b,
         params.num_mc_samples,
-        prevalence_cdf_fixed,
+        params.pfunc,
     ) - params.val
 
 
@@ -220,7 +221,7 @@ cdef double inverse_cdf(
         double spec_a,
         double spec_b,
         int num_mc_samples,
-        function_1d func,
+        prevalence_func pfunc,
 ):
     cdef inverse_cdf_params args
     if x == 0.0:
@@ -232,7 +233,8 @@ cdef double inverse_cdf(
     args.sens_a, args.sens_b = sens_a, sens_b
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = x
-    return brentq(func, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
+    args.pfunc = pfunc
+    return brentq(f, 0, 1, &args, 1e-3, 1e-3, 100, NULL)
 
 
 def inverse_prevalence_cdf(
@@ -282,7 +284,7 @@ def inverse_prevalence_cdf(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
     return inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
-                       num_mc_samples, f2)
+                       num_mc_samples, prevalence_cdf_fixed)
 
 
 cdef double interval_width(double x, void *args):
@@ -302,7 +304,7 @@ cdef double interval_width(double x, void *args):
         params.spec_a,
         params.spec_b,
         params.num_mc_samples,
-        f2,
+        params.pfunc,
     )
     right = inverse_cdf(
         x + params.val,
@@ -313,7 +315,7 @@ cdef double interval_width(double x, void *args):
         params.spec_a,
         params.spec_b,
         params.num_mc_samples,
-        f2,
+        params.pfunc,
     )
     return right - left
 
@@ -413,10 +415,11 @@ def highest_density_interval(
     args.spec_a, args.spec_b = spec_a, spec_b
     args.val = 1 - alpha
     args.num_mc_samples = num_mc_samples
+    args.pfunc = prevalence_cdf_fixed
     argmin_width, min_width = golden_section_search(interval_width, 0, alpha,
                                                     1e-2, 1e-2, &args)
     left = inverse_cdf(argmin_width, n, t, sens_a, sens_b, spec_a, spec_b,
-                       num_mc_samples, f2)
+                       num_mc_samples, prevalence_cdf_fixed)
     right = left + min_width
     return (max(0.0, left), min(right, 1.0))
 
@@ -470,7 +473,6 @@ def equal_tailed_interval(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
-    func = f2
     return (
         inverse_cdf(
             alpha/2,
@@ -481,7 +483,7 @@ def equal_tailed_interval(
             spec_a,
             spec_b,
             num_mc_samples,
-            func
+            prevalence_cdf_fixed,
         ),
         inverse_cdf(
             1 - alpha/2,
@@ -492,7 +494,7 @@ def equal_tailed_interval(
             spec_a,
             spec_b,
             num_mc_samples,
-            func
+            prevalence_cdf_fixed,
         )
     )
 
