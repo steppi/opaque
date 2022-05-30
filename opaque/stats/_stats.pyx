@@ -20,6 +20,10 @@ cdef extern from "stdbool.h":
     ctypedef bint bool
 
 
+ctypedef double (*prevalence_func)(double, int, int, double, double)
+ctypedef double (*function_1d)(double, void*)
+
+
 @cython.cdivision(True)
 cdef inline double coefficient(int n, double p, double q, double x):
     """Return nth coefficient of required continued fraction expansion.
@@ -134,7 +138,7 @@ cdef double prevalence_cdf_cond_neg_fixed(
 
 
 @cython.cdivision(True)
-cdef double prevalence_cdf_mc_est(
+cdef double prevalence_beta_sample(
         double theta,
         int n,
         int t,
@@ -142,7 +146,8 @@ cdef double prevalence_cdf_mc_est(
         double sens_b,
         double spec_a,
         double spec_b,
-        int num_samples
+        int num_samples,
+        prevalence_func func,
 ):
     """Computes marginalization integral with importance sampling."""
     cdef int i
@@ -173,8 +178,7 @@ cdef double prevalence_cdf_mc_est(
     result = 0
     i = 0
     for i in range(num_samples):
-        result += prevalence_cdf_fixed(theta, n, t, sens_array[i],
-                                       spec_array[i])
+        result += func(theta, n, t, sens_array[i], spec_array[i])
     PyMem_Free(sens_array)
     PyMem_Free(spec_array)
     return result/num_samples
@@ -194,7 +198,7 @@ ctypedef struct inverse_cdf_params:
 @cython.cdivision(True)
 cdef double f2(double theta, void *args):
     cdef inverse_cdf_params *params = <inverse_cdf_params *> args
-    return prevalence_cdf_mc_est(
+    return prevalence_beta_sample(
         theta,
         params.n,
         params.t,
@@ -202,7 +206,8 @@ cdef double f2(double theta, void *args):
         params.sens_b,
         params.spec_a,
         params.spec_b,
-        params.num_mc_samples
+        params.num_mc_samples,
+        prevalence_cdf_fixed,
     ) - params.val
 
 
@@ -569,6 +574,14 @@ def prevalence_cdf_wrapper(
         Epidemiology Research International, vol. 2011, Article ID 608719,
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
-    return prevalence_cdf_mc_est(
-            theta, n, t, sens_a, sens_b, spec_a, spec_b, num_mc_samples
-        )
+    return prevalence_beta_sample(
+        theta,
+        n,
+        t,
+        sens_a,
+        sens_b,
+        spec_a,
+        spec_b,
+        num_mc_samples,
+        prevalence_cdf_fixed,
+    )
