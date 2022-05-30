@@ -164,7 +164,7 @@ cdef double prevalence_beta_sample(
     sens_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
     spec_array = <double *> PyMem_Malloc(num_samples * sizeof(double))
     
-    x = PCG64()
+    x = PCG64(seed=1729)
     capsule = x.capsule
     if not PyCapsule_IsValid(capsule, capsule_name):
         raise ValueError("Invalid pointer to anon_func_state")
@@ -209,9 +209,6 @@ cdef double f2(double theta, void *args):
         params.num_mc_samples,
         prevalence_cdf_fixed,
     ) - params.val
-
-
-ctypedef double (*function_1d)(double, void*)
 
 
 cdef double inverse_cdf(
