@@ -67,7 +67,7 @@ setup(
         "cython",
         "scikit-learn",
         "statsmodels",
-        "pymc3==3.11.0",
+        "pymc3",
         "numba",
         "liblinear-official",
     ],
