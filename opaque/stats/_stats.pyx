@@ -129,6 +129,9 @@ cdef double log_prevalence_cdf_fixed(
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
     logY = log_betainc(t + 1, n - t + 1, c1)
     anti_test = False
+    # If c2 < 0, then the diagnostic test is an anti-test. That is, the test
+    # will produce useful results if the returned labels are flipped. When it
+    # says positive, then it is likely the result is actualy negative.
     if c2 < 0:
         c1, c2 = 1 - c1, -c2
         anti_test = True
