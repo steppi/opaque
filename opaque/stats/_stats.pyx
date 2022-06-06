@@ -122,18 +122,18 @@ cdef double prevalence_cdf_cond_pos_fixed(
     cdef:
         double c1, c2, theta
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    theta = (1 - c1)*psi / (1 - sensitivity + c2*psi)
+    theta = c1*psi / (1 - c1 - c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
 @cython.cdivision(True)
 cdef double prevalence_cdf_cond_neg_fixed(
-        double phi, int n, int t, double sensitivity, double specificity
+        double psi, int n, int t, double sensitivity, double specificity
 ):
     cdef:
         double c1, c2, theta
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    theta = c1*phi / (c1 + c2 - c2*phi)
+    theta = (1 - c1)*psi / (c1 + c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
