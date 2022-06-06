@@ -74,7 +74,7 @@ class PrevalenceSimulation:
         with Pool(n_jobs) as pool:
             results = pool.starmap(run_trial_for_theta, points)
         aggregate_results = defaultdict(list)
-        for n, t, theta in results:
+        for n, t, theta, _, _ in results:
             aggregate_results[(n, t)].append(theta)
         aggregate_results = {
             (n, t): ECDF(theta_list)
@@ -97,15 +97,29 @@ class PrevalenceSimulation:
 def run_trial_for_theta(
     theta, sensitivity, specificity, samples_per_trial, random_state
 ):
-    binom_ground = binom(1, theta)
-    binom_ground.random_state = random_state
-    binom_pos = binom(1, sensitivity)
-    binom_pos.random_state = random_state
-    binom_neg = binom(1, 1 - specificity)
-    binom_neg.random_state = random_state
-    ground = binom_ground.rvs(size=samples_per_trial)
-    pos = binom_pos.rvs(size=samples_per_trial)
-    neg = binom_neg.rvs(size=samples_per_trial)
-    observed = np.where(ground == 1, pos, neg)
-    n, t = samples_per_trial, sum(observed)
-    return n, t, theta
+    # Set up distributions
+    ground_dist = binom(1, theta)
+    ground_dist.random_state = random_state
+    # Distribution for test results given example is positive.
+    pos_dist = binom(1, sensitivity)
+    pos_dist.random_state = random_state
+    # Distribution for test results given example is negative.
+    neg_dist = binom(1, 1 - specificity)
+    neg_dist.random_state = random_state
+
+    ground_truth = ground_dist.rvs(size=samples_per_trial)
+    # Hypothetical diagnostic test results for positive examples.
+    pos = pos_dist.rvs(size=samples_per_trial)
+    # Hypothetical results for negative samples.
+    neg = neg_dist.rvs(size=samples_per_trial)
+    # Observed test results.
+    test_results = np.where(ground_truth == 1, pos, neg)
+
+    # Conditional prevalence.
+    theta_pos = np.sum(ground_truth[test_results == 1])
+    theta_pos /= np.sum(test_results == 1)
+    theta_neg = np.sum(ground_truth[test_results == 0])
+    theta_neg /= np.sum(test_results == 0)
+
+    n, t = samples_per_trial, np.sum(test_results)
+    return n, t, theta, theta_pos, theta_neg

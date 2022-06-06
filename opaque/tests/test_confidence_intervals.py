@@ -20,7 +20,7 @@ def test_equal_tailed_interval(test_input):
     for _ in range(n_trials):
         sensitivity = beta.rvs(sens_a, sens_b)
         specificity = beta.rvs(spec_a, spec_b)
-        n, t, _ = run_trial_for_theta(
+        n, t, _, _, _ = run_trial_for_theta(
             theta,
             sensitivity,
             specificity,
@@ -46,7 +46,7 @@ def test_highest_density_interval(test_input):
     for _ in range(n_trials):
         sensitivity = beta.rvs(sens_a, sens_b)
         specificity = beta.rvs(spec_a, spec_b)
-        n, t, _ = run_trial_for_theta(
+        n, t, _, _, _ = run_trial_for_theta(
             theta,
             sensitivity,
             specificity,
