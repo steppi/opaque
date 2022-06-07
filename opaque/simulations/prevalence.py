@@ -74,21 +74,42 @@ class PrevalenceSimulation:
         with Pool(n_jobs) as pool:
             results = pool.starmap(run_trial_for_theta, points)
         aggregate_results = defaultdict(list)
-        for n, t, theta, _, _ in results:
+        aggregate_results_pos = defaultdict(list)
+        aggregate_results_neg = defaultdict(list)
+        for n, t, theta, theta_pos, theta_neg in results:
             aggregate_results[(n, t)].append(theta)
-        aggregate_results = {
+            aggregate_results_pos[(n, t)].append(theta_pos)
+            aggregate_results_neg[(n, t)].append(theta_neg)
+        aggregate_results_pos = {
             (n, t): ECDF(theta_list)
-            for (n, t), theta_list in aggregate_results.items()
+            for (n, t), theta_list in aggregate_results_pos.items()
+        }
+        aggregate_results_neg = {
+            (n, t): ECDF(theta_list)
+            for (n, t), theta_list in aggregate_results_neg.items()
         }
         self.aggregate_results = aggregate_results
+        self.aggregate_results_pos = aggregate_results_pos
+        self.aggregate_results_neg = aggregate_results_neg
         self.info_dict["n_trials"] = n_trials
 
     def get_results_dict(self, num_grid_points=100):
         x = np.linspace(0, 1, num_grid_points)
+        results_dict = self.aggregate_results
+        results_dict_pos = self.aggregate_results_pos
+        results_dict_neg = self.aggregate_results_neg
         return {
             "results": {
                 f"{n}:{t}": ecdf(x).tolist()
-                for (n, t), ecdf in self.aggregate_results.items()
+                for (n, t), ecdf in results_dict.items()
+            },
+            "results_pos": {
+                f"{n}:{t}": ecdf(x).tolist()
+                for (n, t), ecdf in results_dict_pos.items()
+            },
+            "results_neg": {
+                f"{n}:{t}": ecdf(x).tolist()
+                for (n, t), ecdf in results_dict_neg.items()
             },
             "info": self.info_dict,
         }
