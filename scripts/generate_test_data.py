@@ -9,21 +9,43 @@ from opaque.simulations.prevalence import PrevalenceSimulation
 @click.option('--n_jobs', default=1, type=int, show_default=True)
 @click.option('--n_trials', default=10000, type=int, show_default=True)
 def main(n_jobs, n_trials):
-    simulations_with_prior = [PrevalenceSimulation((70, 30), (60, 40),
-                                                   samples_per_trial=100,
-                                                   seed=561),
-                              PrevalenceSimulation((60, 40), (70, 30),
-                                                   samples_per_trial=1000,
-                                                   seed=1105),
-                              PrevalenceSimulation((8, 2), (12, 4),
-                                                   samples_per_trial=50,
-                                                   seed=1729)]
-    simulations_fixed = [PrevalenceSimulation(0.8, 0.7, samples_per_trial=20,
-                                              seed=2465),
-                         PrevalenceSimulation(0.7, 0.8, samples_per_trial=100,
-                                              seed=2821),
-                         PrevalenceSimulation(0.6, 0.9, samples_per_trial=1000,
-                                              seed=6601)]
+    simulations_with_prior = [
+        PrevalenceSimulation(
+            (70, 30), (60, 40),
+            samples_per_trial=100,
+            num_grid_points=1000,
+            seed=561,
+        ),
+        PrevalenceSimulation(
+            (60, 40), (70, 30),
+            samples_per_trial=1000,
+            num_grid_points=1000,
+            seed=1105,
+        ),
+        PrevalenceSimulation(
+            (8, 2), (12, 4),
+            samples_per_trial=50,
+            num_grid_points=1000,
+            seed=1729,
+        )
+    ]
+    simulations_fixed = [
+        PrevalenceSimulation(
+            0.8, 0.7, samples_per_trial=20,
+            num_grid_points=1000,
+            seed=2465,
+        ),
+        PrevalenceSimulation(
+            0.7, 0.8, samples_per_trial=100,
+            num_grid_points=1000,
+            seed=2821,
+        ),
+        PrevalenceSimulation(
+            0.6, 0.9, samples_per_trial=1000,
+            num_grid_points=1000,
+            seed=6601,
+        ),
+    ]
     for i, simulation in enumerate(simulations_with_prior):
         simulation.run(n_trials=n_trials, n_jobs=n_jobs)
         with open(os.path.join(TEST_DATA_LOCATION,
