@@ -75,7 +75,10 @@ class PrevalenceSimulation:
         aggregate_results_pos = defaultdict(list)
         aggregate_results_neg = defaultdict(list)
         with Pool(n_jobs) as pool:
-            results = pool.imap(run_trial_for_theta, points, chunksize=100)
+            chunksize = n_trials * self.num_grid_points // (4 * n_jobs)
+            results = pool.imap(
+                run_trial_for_theta, points, chunksize=chunksize
+            )
             for n, t, theta, theta_pos, theta_neg in results:
                 aggregate_results[(n, t)].append(theta)
                 aggregate_results_pos[(n, t)].append(theta_pos)
