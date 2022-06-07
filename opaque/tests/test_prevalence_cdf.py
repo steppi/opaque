@@ -68,7 +68,7 @@ class TestPrevalenceCdf(object):
         mae, mxae = self.get_mae_for_testcase(
             n, t, sens_a, sens_b, spec_a, spec_b, num_grid_points, results
         )
-        assert mae < 0.05
+        assert mae < 0.06
 
     @pytest.mark.parametrize(
         "test_input", [(1000, t) for t in range(300, 701)]
@@ -84,7 +84,7 @@ class TestPrevalenceCdf(object):
         mae, mxae = self.get_mae_for_testcase(
             n, t, sens_a, sens_b, spec_a, spec_b, num_grid_points, results
         )
-        assert mae < 0.05
+        assert mae < 0.06
 
     @pytest.mark.parametrize("test_input", [(50, t) for t in range(10, 41)])
     def test_prevalence_cdf_sim2(self, test_input, simulation2):
@@ -98,4 +98,4 @@ class TestPrevalenceCdf(object):
         mae, mxae = self.get_mae_for_testcase(
             n, t, sens_a, sens_b, spec_a, spec_b, num_grid_points, results
         )
-        assert mae < 0.05
+        assert mae < 0.06

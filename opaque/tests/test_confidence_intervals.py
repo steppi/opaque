@@ -8,9 +8,9 @@ from opaque.stats import equal_tailed_interval, highest_density_interval
 @pytest.mark.parametrize(
     "test_input",
     [
-        (0.4, 12, 4, 70, 30, 100),
+        (0.4, 80, 20, 7, 3, 100),
         (0.8, 20, 5, 60, 40, 20),
-        (0.2, 10, 5, 80, 20, 1000)
+        (0.2, 10, 5, 8, 2, 1000)
     ],
 )
 def test_equal_tailed_interval(test_input):
@@ -37,7 +37,7 @@ def test_equal_tailed_interval(test_input):
 
 
 @pytest.mark.parametrize(
-    "test_input", [(0.4, 12, 4, 70, 30, 100), (0.8, 20, 5, 60, 40, 20)]
+    "test_input", [(0.4, 80, 20, 7, 3, 100), (0.8, 20, 5, 60, 40, 20)]
 )
 def test_highest_density_interval(test_input):
     n_trials = 100
@@ -56,9 +56,8 @@ def test_highest_density_interval(test_input):
         interval = highest_density_interval(
             n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1
         )
-        print(interval, n, t)
         if interval[0] <= theta <= interval[1]:
             hits += 1
     coverage_rate = hits / n_trials
-    print(coverage_rate)
+    print("coverage_rate", coverage_rate)
     assert coverage_rate > 0.8
