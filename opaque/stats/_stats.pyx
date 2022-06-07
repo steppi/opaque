@@ -116,7 +116,7 @@ cdef double prevalence_cdf_fixed(
 
 
 @cython.cdivision(True)
-cdef double prevalence_cdf_cond_pos_fixed(
+cdef double prevalence_cdf_positive_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ):
     cdef:
@@ -127,7 +127,7 @@ cdef double prevalence_cdf_cond_pos_fixed(
 
 
 @cython.cdivision(True)
-cdef double prevalence_cdf_cond_neg_fixed(
+cdef double prevalence_cdf_negative_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ):
     cdef:
@@ -245,7 +245,8 @@ def inverse_prevalence_cdf(
         sens_b: float,
         spec_a: float,
         spec_b: float,
-        num_mc_samples: int = 5000
+        num_mc_samples: int = 5000,
+        mode: str = "unconditional",
 ) -> float:
     """Returns inverse of prevalence cdf evaluated at x for param values
 
@@ -270,7 +271,12 @@ def inverse_prevalence_cdf(
     spec_b : float
         Second shape parameter of beta prior for specificity.
     num_mc_samples : Optional[int]
-       Number of samples to take when importance sampling.
+       Number of samples to take when importance sampling. Default 5000.
+    mode : Optional[str]
+        If "unconditional" standard prevalence cdf. If "positive",
+        prevalence cdf conditioned on positive diagnostic test result.
+        If "negative", prevalence cdf conditioned on negative test
+        result. Default "unconditional".
 
     Returns
     -------
@@ -283,6 +289,17 @@ def inverse_prevalence_cdf(
         Epidemiology Research International, vol. 2011, Article ID 608719,
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
+    if mode == "unconditional":
+        pfunc = prevalence_cdf_fixed
+    elif mode == "positive":
+        pfunc = prevalence_cdf_positive_fixed
+    elif mode == "negative":
+        pfunc = prevalence_cdf_negative_fixed
+    else:
+        raise ValueError(
+            'mode should be one of "unconditional", "positive", "negative", '
+            f'got "{mode}"'
+        )
     return inverse_cdf(x, n, t, sens_a, sens_b, spec_a, spec_b,
                        num_mc_samples, prevalence_cdf_fixed)
 
@@ -393,7 +410,12 @@ def highest_density_interval(
         Significance level. Interval of posterior accounts for
         probability 1 - alpha.
     num_mc_samples : Optional[int]
-       Number of samples to take when importance sampling if mc_est = True.
+       Number of samples to take when importance sampling. Default = 5000.
+    mode : Optional[str]
+        If "unconditional" standard prevalence cdf. If "positive",
+        prevalence cdf conditioned on positive diagnostic test result.
+        If "negative", prevalence cdf conditioned on negative test
+        result. Default "unconditional".
 
     Returns
     -------
@@ -415,9 +437,9 @@ def highest_density_interval(
     if mode == "unconditional":
         pfunc = prevalence_cdf_fixed
     elif mode == "positive":
-        pfunc = prevalence_cdf_cond_pos_fixed
+        pfunc = prevalence_cdf_positive_fixed
     elif mode == "negative":
-        pfunc = prevalence_cdf_cond_neg_fixed
+        pfunc = prevalence_cdf_negative_fixed
     else:
         raise ValueError(
             'mode should be one of "unconditional", "positive", "negative", '
@@ -472,7 +494,12 @@ def equal_tailed_interval(
         Significance level. Interval of posterior accounts for
         probability 1 - alpha.
     num_mc_samples : Optional[int]
-       Number of samples to take when importance sampling if mc_est = True.
+        Number of samples to take when importance sampling. Default = 5000.
+    mode : Optional[str]
+        If "unconditional" standard prevalence cdf. If "positive",
+        prevalence cdf conditioned on positive diagnostic test result.
+        If "negative", prevalence cdf conditioned on negative test
+        result. Default "unconditional".
 
     Returns
     -------
@@ -491,9 +518,9 @@ def equal_tailed_interval(
     if mode == "unconditional":
         pfunc = prevalence_cdf_fixed
     elif mode == "positive":
-        pfunc = prevalence_cdf_cond_pos_fixed
+        pfunc = prevalence_cdf_positive_fixed
     elif mode == "negative":
-        pfunc = prevalence_cdf_cond_neg_fixed
+        pfunc = prevalence_cdf_negative_fixed
     else:
         raise ValueError(
             'mode should be one of "unconditional", "positive", "negative", '
@@ -555,7 +582,13 @@ def prevalence_cdf_wrapper(
     spec_b : float
         Second shape parameter of beta prior for specificity.
     num_mc_samples : Optional[int]
-       Number of samples to take when importance sampling.
+        Number of samples to take when importance sampling.
+        Default 5000.
+    mode : Optional[str]
+        If "unconditional" standard prevalence cdf. If "positive",
+        prevalence cdf conditioned on positive diagnostic test result.
+        If "negative", prevalence cdf conditioned on negative test
+        result. Default "unconditional".
 
     Returns
     -------
@@ -572,9 +605,9 @@ def prevalence_cdf_wrapper(
     if mode == "unconditional":
         pfunc = prevalence_cdf_fixed
     elif mode == "positive":
-        pfunc = prevalence_cdf_cond_pos_fixed
+        pfunc = prevalence_cdf_positive_fixed
     elif mode == "negative":
-        pfunc = prevalence_cdf_cond_neg_fixed
+        pfunc = prevalence_cdf_negative_fixed
     else:
         raise ValueError(
             'mode should be one of "unconditional", "positive", "negative", '
@@ -617,10 +650,9 @@ def prevalence_cdf_fixed_wrapper(theta, n, t, sensitivity, specificity):
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
-def prevalence_cdf_cond_pos_fixed_wrapper(psi, n, t, sensitivity, specificity):
-    return prevalence_cdf_cond_pos_fixed(psi, n, t, sensitivity, specificity)
+def prevalence_cdf_positive_fixed_wrapper(psi, n, t, sensitivity, specificity):
+    return prevalence_cdf_positive_fixed(psi, n, t, sensitivity, specificity)
 
 
-def prevalence_cdf_cond_neg_fixed_wrapper(psi, n, t, sensitivity, specificity):
-    return prevalence_cdf_cond_neg_fixed(psi, n, t, sensitivity, specificity)
-
+def prevalence_cdf_negative_fixed_wrapper(psi, n, t, sensitivity, specificity):
+    return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
