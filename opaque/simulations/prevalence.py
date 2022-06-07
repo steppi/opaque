@@ -71,15 +71,15 @@ class PrevalenceSimulation:
             for _ in range(n_trials)
             for theta in np.linspace(0, 1, self.num_grid_points)
         )
-        with Pool(n_jobs) as pool:
-            results = pool.imap(run_trial_for_theta, points, chunksize=100)
         aggregate_results = defaultdict(list)
         aggregate_results_pos = defaultdict(list)
         aggregate_results_neg = defaultdict(list)
-        for n, t, theta, theta_pos, theta_neg in results:
-            aggregate_results[(n, t)].append(theta)
-            aggregate_results_pos[(n, t)].append(theta_pos)
-            aggregate_results_neg[(n, t)].append(theta_neg)
+        with Pool(n_jobs) as pool:
+            results = pool.imap(run_trial_for_theta, points, chunksize=100)
+            for n, t, theta, theta_pos, theta_neg in results:
+                aggregate_results[(n, t)].append(theta)
+                aggregate_results_pos[(n, t)].append(theta_pos)
+                aggregate_results_neg[(n, t)].append(theta_neg)
         aggregate_results = {
             (n, t): ECDF(theta_list)
             for (n, t), theta_list in aggregate_results.items()
