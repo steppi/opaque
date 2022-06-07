@@ -35,7 +35,7 @@ def simulation2():
     return get_simulation_results("prevalence_cdf_simulation_fixed2.json")
 
 
-class TestPrevalenceCdfFixed(object):
+class TestPrevalenceCdfFixed:
     def calculate_cdf(self, n, t, sens, spec, num):
         return np.fromiter(
             (
