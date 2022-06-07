@@ -80,6 +80,10 @@ class PrevalenceSimulation:
             aggregate_results[(n, t)].append(theta)
             aggregate_results_pos[(n, t)].append(theta_pos)
             aggregate_results_neg[(n, t)].append(theta_neg)
+        aggregate_results = {
+            (n, t): ECDF(theta_list)
+            for (n, t), theta_list in aggregate_results.items()
+        }
         aggregate_results_pos = {
             (n, t): ECDF(theta_list)
             for (n, t), theta_list in aggregate_results_pos.items()
