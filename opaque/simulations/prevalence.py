@@ -100,7 +100,9 @@ class PrevalenceSimulation:
         self.aggregate_results_neg = aggregate_results_neg
         self.info_dict["n_trials"] = n_trials
 
-    def get_results_dict(self, num_grid_points=100):
+    def get_results_dict(self, num_grid_points=None):
+        if num_grid_points is None:
+            num_grid_points = self.info_dict["num_grid_points"]
         x = np.linspace(0, 1, num_grid_points)
         results_dict = self.aggregate_results
         results_dict_pos = self.aggregate_results_pos
