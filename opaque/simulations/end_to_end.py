@@ -60,7 +60,7 @@ class EndtoEndSimulator:
         X = np.hstack([np.full((X.shape[0], 1), 1), X])
         sens_mu = expit(
             X.dot(self.sens_coefs_mean)
-            + np.random.normal(0, self.sens_noise_mean, size=size)
+            + self.random_state.normal(0, self.sens_noise_mean, size=size)
         )
         sens_nu = np.exp(
             X.dot(self.sens_coefs_disp)
@@ -71,11 +71,11 @@ class EndtoEndSimulator:
         sens = sens_prior.rvs()
         spec_mu = expit(
             X.dot(self.spec_coefs_mean)
-            + np.random.normal(0, self.spec_noise_mean, size=size)
+            + self.random_state.normal(0, self.spec_noise_mean, size=size)
         )
         spec_nu = np.exp(
             X.dot(self.spec_coefs_disp)
-            + np.random.normal(0, self.spec_noise_disp, size=size)
+            + self.random_state.normal(0, self.spec_noise_disp, size=size)
         )
         spec_prior = beta(spec_mu * spec_nu, (1 - spec_mu) * spec_nu)
         spec_prior.random_state = self.random_state
