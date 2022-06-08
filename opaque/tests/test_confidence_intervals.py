@@ -18,9 +18,13 @@ def test_equal_tailed_interval(test_input):
     theta, sens_a, sens_b, spec_a, spec_b, sample_size = test_input
     hits = 0
     random_state = np.random.RandomState(561)
+    sens_dist = beta(sens_a, sens_b)
+    spec_dist = beta(spec_a, spec_b)
+    sens_dist.random_state = random_state
+    spec_dist.random_state = random_state
     for _ in range(n_trials):
-        sensitivity = beta.rvs(sens_a, sens_b)
-        specificity = beta.rvs(spec_a, spec_b)
+        sensitivity = sens_dist.rvs()
+        specificity = spec_dist.rvs()
         n, t, _, _, _ = run_trial_for_theta(
             (
                 theta,
@@ -47,9 +51,13 @@ def test_highest_density_interval(test_input):
     theta, sens_a, sens_b, spec_a, spec_b, sample_size = test_input
     hits = 0
     random_state = np.random.RandomState(1105)
+    sens_dist = beta(sens_a, sens_b)
+    spec_dist = beta(spec_a, spec_b)
+    sens_dist.random_state = random_state
+    spec_dist.random_state = random_state
     for _ in range(n_trials):
-        sensitivity = beta.rvs(sens_a, sens_b)
-        specificity = beta.rvs(spec_a, spec_b)
+        sensitivity = sens_dist.rvs()
+        specificity = spec_dist.rvs()
         n, t, _, _, _ = run_trial_for_theta(
             (
                 theta,
@@ -65,5 +73,4 @@ def test_highest_density_interval(test_input):
         if interval[0] <= theta <= interval[1]:
             hits += 1
     coverage_rate = hits / n_trials
-    print("coverage_rate", coverage_rate)
     assert coverage_rate > 0.8
