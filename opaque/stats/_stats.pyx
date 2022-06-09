@@ -122,7 +122,7 @@ cdef double prevalence_cdf_positive_fixed(
     cdef:
         double c1, c2, theta
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    theta = c1*psi / (1 - c1 - c2*psi)
+    theta = c1*psi / (c1 + c2 - c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
@@ -133,7 +133,7 @@ cdef double prevalence_cdf_negative_fixed(
     cdef:
         double c1, c2, theta
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
-    theta = (1 - c1)*psi / (c1 + c2*psi)
+    theta = (1 - c1)*psi / (1 - c1 - c2 + c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
@@ -646,13 +646,18 @@ def log_betainc_wrapper(p: float, q: float, x: float) -> float:
     return log_betainc(p, q, x)
 
 
-def prevalence_cdf_fixed_wrapper(theta, n, t, sensitivity, specificity):
-    return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
-
-
-def prevalence_cdf_positive_fixed_wrapper(psi, n, t, sensitivity, specificity):
-    return prevalence_cdf_positive_fixed(psi, n, t, sensitivity, specificity)
-
-
-def prevalence_cdf_negative_fixed_wrapper(psi, n, t, sensitivity, specificity):
-    return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
+def prevalence_cdf_fixed_wrapper(
+        theta, n, t, sensitivity, specificity, mode="unconditional",
+):
+    if mode == "unconditional":
+        pfunc = prevalence_cdf_fixed
+    elif mode == "positive":
+        pfunc = prevalence_cdf_positive_fixed
+    elif mode == "negative":
+        pfunc = prevalence_cdf_negative_fixed
+    else:
+        raise ValueError(
+            'mode should be one of "unconditional", "positive", "negative", '
+            f'got "{mode}"'
+        )
+    return pfunc(theta, n, t, sensitivity, specificity)
