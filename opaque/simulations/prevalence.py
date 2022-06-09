@@ -71,41 +71,84 @@ class PrevalenceSimulation:
             for _ in range(n_trials)
             for theta in np.linspace(0, 1, self.num_grid_points)
         )
-        with Pool(n_jobs) as pool:
-            results = pool.starmap(run_trial_for_theta, points)
         aggregate_results = defaultdict(list)
-        for n, t, theta in results:
-            aggregate_results[(n, t)].append(theta)
+        aggregate_results_pos = defaultdict(list)
+        aggregate_results_neg = defaultdict(list)
+        with Pool(n_jobs) as pool:
+            chunksize = n_trials * self.num_grid_points // (4 * n_jobs)
+            results = pool.imap(
+                run_trial_for_theta, points, chunksize=chunksize
+            )
+            for n, t, theta, theta_pos, theta_neg in results:
+                aggregate_results[(n, t)].append(theta)
+                aggregate_results_pos[(n, t)].append(theta_pos)
+                aggregate_results_neg[(n, t)].append(theta_neg)
         aggregate_results = {
             (n, t): ECDF(theta_list)
             for (n, t), theta_list in aggregate_results.items()
         }
+        aggregate_results_pos = {
+            (n, t): ECDF(theta_list)
+            for (n, t), theta_list in aggregate_results_pos.items()
+        }
+        aggregate_results_neg = {
+            (n, t): ECDF(theta_list)
+            for (n, t), theta_list in aggregate_results_neg.items()
+        }
         self.aggregate_results = aggregate_results
+        self.aggregate_results_pos = aggregate_results_pos
+        self.aggregate_results_neg = aggregate_results_neg
         self.info_dict["n_trials"] = n_trials
 
-    def get_results_dict(self, num_grid_points=100):
+    def get_results_dict(self, num_grid_points=None):
+        if num_grid_points is None:
+            num_grid_points = self.info_dict["num_grid_points"]
         x = np.linspace(0, 1, num_grid_points)
+        results_dict = self.aggregate_results
+        results_dict_pos = self.aggregate_results_pos
+        results_dict_neg = self.aggregate_results_neg
         return {
             "results": {
                 f"{n}:{t}": ecdf(x).tolist()
-                for (n, t), ecdf in self.aggregate_results.items()
+                for (n, t), ecdf in results_dict.items()
+            },
+            "results_pos": {
+                f"{n}:{t}": ecdf(x).tolist()
+                for (n, t), ecdf in results_dict_pos.items()
+            },
+            "results_neg": {
+                f"{n}:{t}": ecdf(x).tolist()
+                for (n, t), ecdf in results_dict_neg.items()
             },
             "info": self.info_dict,
         }
 
 
-def run_trial_for_theta(
-    theta, sensitivity, specificity, samples_per_trial, random_state
-):
-    binom_ground = binom(1, theta)
-    binom_ground.random_state = random_state
-    binom_pos = binom(1, sensitivity)
-    binom_pos.random_state = random_state
-    binom_neg = binom(1, 1 - specificity)
-    binom_neg.random_state = random_state
-    ground = binom_ground.rvs(size=samples_per_trial)
-    pos = binom_pos.rvs(size=samples_per_trial)
-    neg = binom_neg.rvs(size=samples_per_trial)
-    observed = np.where(ground == 1, pos, neg)
-    n, t = samples_per_trial, sum(observed)
-    return n, t, theta
+def run_trial_for_theta(args):
+    theta, sensitivity, specificity, samples_per_trial, random_state = args
+    # Set up distributions
+    ground_dist = binom(1, theta)
+    ground_dist.random_state = random_state
+    # Distribution for test results given example is positive.
+    pos_dist = binom(1, sensitivity)
+    pos_dist.random_state = random_state
+    # Distribution for test results given example is negative.
+    neg_dist = binom(1, 1 - specificity)
+    neg_dist.random_state = random_state
+
+    ground_truth = ground_dist.rvs(size=samples_per_trial)
+    # Hypothetical diagnostic test results for positive examples.
+    pos = pos_dist.rvs(size=samples_per_trial)
+    # Hypothetical results for negative samples.
+    neg = neg_dist.rvs(size=samples_per_trial)
+    # Observed test results.
+    test_results = np.where(ground_truth == 1, pos, neg)
+
+    # Conditional prevalence.
+    theta_pos = np.sum(ground_truth[test_results == 1])
+    theta_pos /= np.sum(test_results == 1)
+    theta_neg = np.sum(ground_truth[test_results == 0])
+    theta_neg /= np.sum(test_results == 0)
+
+    n, t = samples_per_trial, np.sum(test_results)
+    return n, t, theta, theta_pos, theta_neg

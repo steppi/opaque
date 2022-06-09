@@ -1,6 +1,6 @@
-import sys
 import numpy as np
 from os import path
+from Cython.Build import cythonize
 from setuptools.extension import Extension
 from setuptools import setup, find_packages
 
@@ -10,14 +10,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
-
-if "--use-cython" in sys.argv:
-    USE_CYTHON = True
-    sys.argv.remove("--use-cython")
-else:
-    USE_CYTHON = False
-
-ext = ".pyx" if USE_CYTHON else ".c"
+ext = ".pyx"
 
 defs = [("NPY_NO_DEPRECATED_API", 0)]
 inc_path = np.get_include()
@@ -40,13 +33,11 @@ extensions = [
     ),
 ]
 
-if USE_CYTHON:
-    from Cython.Build import cythonize
 
-    extensions = cythonize(
-        extensions,
-        compiler_directives={"language_level": 3},
-    )
+extensions = cythonize(
+    extensions,
+    compiler_directives={"language_level": 3},
+)
 
 setup(
     name="opaque",
@@ -67,7 +58,7 @@ setup(
         "cython",
         "scikit-learn",
         "statsmodels",
-        "pymc3==3.11.0",
+        "pymc3",
         "numba",
         "liblinear-official",
     ],
