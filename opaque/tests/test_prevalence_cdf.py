@@ -129,6 +129,8 @@ class TestPrevalenceCdf(object):
         if mode == "unconditional":
             assert mae < 0.06
         else:
+            # Looser conditions for conditional prevalence reflect inaccuracies
+            # in the simulation, not the method.
             assert mae < 0.09
 
     @pytest.mark.parametrize("test_input", [(50, t) for t in range(10, 41)])

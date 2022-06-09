@@ -93,6 +93,8 @@ class TestPrevalenceCdfFixed:
             assert mae < 0.01
             assert mxae < 0.1
         else:
+            # Looser conditions for conditional prevalence reflect inaccuracies
+            # in the simulation, not the method.
             assert mae < 0.025
 
     @pytest.mark.parametrize("test_input", [(100, t) for t in range(20, 81)])
@@ -118,6 +120,8 @@ class TestPrevalenceCdfFixed:
             assert mae < 0.01
             assert mxae < 0.1
         else:
+            # Looser conditions for conditional prevalence reflect inaccuracies
+            # in the simulation, not the method.
             assert mae < 0.03
 
     @pytest.mark.parametrize("test_input", [(100, t) for t in range(200, 801)])
@@ -143,4 +147,6 @@ class TestPrevalenceCdfFixed:
             assert mae < 0.01
             assert mxae < 0.1
         else:
+            # Looser conditions for conditional prevalence reflect inaccuracies
+            # in the simulation, not the method.
             assert mae < 0.03
