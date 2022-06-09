@@ -129,7 +129,7 @@ class TestPrevalenceCdf(object):
         if mode == "unconditional":
             assert mae < 0.06
         else:
-            assert mae < 0.08
+            assert mae < 0.09
 
     @pytest.mark.parametrize("test_input", [(50, t) for t in range(10, 41)])
     def test_prevalence_cdf_sim2(self, test_input, simulation2):
