@@ -9,4 +9,4 @@ limited circumstances.
 ## Funding
 
 Development of this software was supported by the Defense Advanced Research
-Projects Agency under awards W911NF018-1-0124 and W911NF-15-1-0544.
+Projects Agency under awards W911NF-20-1-0255 and W911NF-15-1-0544.
