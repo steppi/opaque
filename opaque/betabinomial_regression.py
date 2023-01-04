@@ -1,6 +1,6 @@
 import numpy as np
 import pickle
-import pymc3 as pm
+import pymc as pm
 from typing import NamedTuple
 
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -63,10 +63,10 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             X_disp = X[:] if disp_use_cols is None else X[:, disp_use_cols]
             ncols_mean = X_mean.shape[1]
             ncols_disp = X_disp.shape[1]
-            X_mean_obs = pm.Data("X_mean_obs", X_mean)
-            X_disp_obs = pm.Data("X_disp_obs", X_disp)
-            N = pm.Data("N", N)
-            K_obs = pm.Data("K_obs", K)
+            X_mean_obs = pm.MutableData("X_mean_obs", X_mean)
+            X_disp_obs = pm.MutableData("X_disp_obs", X_disp)
+            N = pm.MutableData("N", N)
+            K_obs = pm.MutableData("K_obs", K)
             if self.coefficient_prior_type == "normal":
                 coef_mean = pm.Normal(
                     "coef_mean",
@@ -138,7 +138,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
                     "K_obs": np.empty(len(X_mean)),
                 }
             )
-            post_pred = pm.fast_sample_posterior_predictive(
+            post_pred = pm.sample_posterior_predictive(
                 self.trace_,
                 **pymc3_args
                 )
@@ -155,14 +155,14 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         X = check_array(X)
         N = np.full(X.shape[0], 1)
         post_pred = self.get_posterior_predictions(X, N)
-        mu_sample = post_pred["mu"]
-        nu_sample = post_pred["nu"]
+        mu_sample = post_pred.posterior_predictive.mu.to_numpy()
+        nu_sample = post_pred.posterior_predictive.nu.to_numpy()
         alpha_sample = mu_sample * nu_sample
         beta_sample = (1 - mu_sample) * nu_sample
-        alpha = np.mean(alpha_sample, axis=0)
-        beta = np.mean(beta_sample, axis=0)
-        alpha_var = np.var(alpha_sample, axis=0)
-        beta_var = np.var(beta_sample, axis=0)
+        alpha = np.mean(alpha_sample, axis=(0, 1))
+        beta = np.mean(beta_sample, axis=(0, 1))
+        alpha_var = np.var(alpha_sample, axis=(0, 1))
+        beta_var = np.var(beta_sample, axis=(0, 1))
         return (
             np.vstack([alpha, beta]).T,
             np.vstack([alpha_var, beta_var]).T,
