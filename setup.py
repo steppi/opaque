@@ -45,7 +45,7 @@ setup(
     description="Outlier prevalence analysis for quantification"
     " of unknown entities.",
     author="opaque developers, Harvard Medical School",
-    author_email="albert_steppi@hms.harvard.edu",
+    author_email="albert.steppi@gmail.com",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3.6",
@@ -55,14 +55,15 @@ setup(
     ],
     packages=find_packages(),
     install_requires=[
+        "appdirs",
+        "liblinear-official",
         "cython",
+        "numba",
+        "pymc",
         "scikit-learn",
         "statsmodels",
-        "pymc",
-        "numba",
-        "liblinear-official",
     ],
-    extras_require={"test": ["pytest", "pytest-cov", "mpmath"]},
+    extras_require={"test": ["mpmath", "pandas", "pytest", "pytest-cov"]},
     ext_modules=extensions,
     include_package_data=True,
 )
