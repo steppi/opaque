@@ -14,7 +14,10 @@ NEGATIVE_SET_PATH = os.path.join(
     OPAQUE_HOME, "negative_set.json"
 )
 DIAGNOSTIC_TEST_PRIOR_MODEL_PATH = os.path.join(
-    OPAQUE_HOME, "prior_model.pkl",
+    OPAQUE_HOME, "prior_model.pkl"
+)
+ADEFT_BETABINOM_DATASET_PATH = os.path.join(
+    OPAQUE_HOME, "adeft_betabinom_dataset.csv"
 )
 TEST_DATA_LOCATION = os.path.join(here, "tests", "data")
 S3_BUCKET_URL = "https://adeft.s3.amazonaws.com/opaque"

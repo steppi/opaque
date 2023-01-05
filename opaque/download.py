@@ -34,6 +34,14 @@ def download_diagnostic_test_prior_model():
     )
 
 
+def download_adeft_betabinom_dataset():
+    wget.download(
+        url=f"{loc.S3_BUCKET_URL}/"
+        f"{os.path.basename(loc.ADEFT_BETABINOM_DATASET_PATH)}",
+        out=loc.ADEFT_BETABINOM_DATASET_PATH,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download resource files.")
     parser.add_argument("--force", action="store_true", default=False)
@@ -55,3 +63,5 @@ if __name__ == "__main__":
         download_diagnostic_test_prior_model()
     if not os.path.exists(loc.NEGATIVE_SET_PATH):
         download_negative_set()
+    if not os.path.exists(loc.ADEFT_BETABINOM_DATASET_PATH):
+        download_adeft_betabinom_dataset()
