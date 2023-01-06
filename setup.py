@@ -14,7 +14,7 @@ lib_path = path.join(inc_path, "..", "..", "random", "lib")
 extensions = [
     Extension(
         "opaque.stats._stats",
-        ["opaque/stats/_stats" + ext],
+        ["src/opaque/stats/_stats" + ext],
         include_dirs=[inc_path],
         library_dirs=[lib_path],
         libraries=["npyrandom"],
@@ -22,7 +22,7 @@ extensions = [
     ),
     Extension(
         "opaque.ood._tree_kernel",
-        ["opaque/ood/_tree_kernel" + ext],
+        ["src/opaque/ood/_tree_kernel" + ext],
         include_dirs=[inc_path],
         define_macros=defs,
     ),
