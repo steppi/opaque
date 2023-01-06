@@ -36,7 +36,7 @@ import opaque.locations as loc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--numpy_seed", type=int)
+    parser.add_argument("--numpy-seed", type=int)
     args = parser.parse_args()
 
     df = pd.read_csv(loc.ADEFT_BETABINOM_DATASET_PATH, sep=',')
@@ -80,5 +80,5 @@ if __name__ == "__main__":
     df['spec_strat_label'] = df.N_inlier.apply(get_size_group)
     df['sens_strat_label'] = df.N_outlier.apply(get_size_group)
     df['joint_strat_label'] = 3*df.spec_strat_label + df.sens_strat_label
-    
+    df = df.sample(frac=1, random_state=args.numpy_seed)
     df.to_csv("adeft_betabinom_dataset_processed.csv", sep=",", index=False)
