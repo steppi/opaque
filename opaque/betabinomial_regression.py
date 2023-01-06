@@ -121,10 +121,10 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             self.trace_ = trace
             self.model_ = model
 
-    def get_posterior_predictions(self, X, N, **pymc3_args):
+    def get_posterior_predictions(self, X, N, **pymc_args):
         check_is_fitted(self)
-        if "var_names" not in pymc3_args:
-            pymc3_args["var_names"] = ["K_est", "mu", "nu"]
+        if "var_names" not in pymc_args:
+            pymc_args["var_names"] = ["K_est", "mu", "nu"]
         mean_use_cols, disp_use_cols = self.mean_use_cols, self.disp_use_cols
         X, N = check_X_y(X, N)
         X_mean = X[:] if mean_use_cols is None else X[:, mean_use_cols]
@@ -138,17 +138,16 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
                     "K_obs": np.empty(len(X_mean)),
                 }
             )
-            post_pred = pm.sample_posterior_predictive(
-                self.trace_,
-                **pymc3_args
-                )
+            post_pred = pm.sample_posterior_predictive(self.trace_, **pymc_args)
         return post_pred
 
     def predict(self, X, N=None):
         if N is None:
             N = np.ones(size=(X.shape[0]))
         post_pred = self.get_posterior_predictions(X, N, var_names=["K_est"])
-        preds = np.mean(post_pred["K_est"], axis=0)
+        preds = np.mean(
+            post_pred.posterior_predictive.K_est.to_numpy(), axis=(0, 1)
+        )
         return np.vstack([N, preds]).T
 
     def predict_shape_params(self, X):
