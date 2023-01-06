@@ -1,5 +1,11 @@
 """Helps split data in a way that avoids information leak
 
+This adds columns to the csv data which can be used for using grouped
+stratified cross validation. The main ideas are expressed in this
+docstring. See the code below for specifics.
+
+Groups
+------
 In each split, we should never have a pair of datapoints A, B from train and
 test respectively for which
 
@@ -14,14 +20,16 @@ will use the same exact training data. If A and B have the same agent text,
 then there will be a large overlap in their validation data, since the
 validation data will have come from the same adeft model.
 
-We also try to stratify by the size of the 
+Stratification
+--------------
+We also try to stratify crudely by the number of inlier and outlier samples in
+the data.
 """
 
 import argparse
 import networkx as nx
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedGroupKFold
 
 import opaque.locations as loc
 
@@ -67,18 +75,10 @@ if __name__ == "__main__":
     )
 
     def get_size_group(x):
-        return max(3, int(np.log10(x + 1)))
+        return max(2, int(np.log10(x + 1)))
 
     df['spec_strat_label'] = df.N_inlier.apply(get_size_group)
     df['sens_strat_label'] = df.N_outlier.apply(get_size_group)
-    df['joint_strat_label'] = 4*df.spec_strat_label + df.sens_strat_label
-
-    splits = StratifiedGroupKFold(
-        n_splits=5, random_state=args.numpy_seed, shuffle=True
-    ).split(df, df.joint_strat_label, groups=df.group)
-    train_idx, test_idx = next(splits)
-    train_df = df.iloc[train_idx]
-    test_df = df.iloc[test_idx]
-
-    train_df.to_csv('adeft_betabinom_dataset_train.csv', sep=',', index=False)
-    test_df.to_csv('adeft_betabinom_dataset_test.csv', sep=',', index=False)
+    df['joint_strat_label'] = 3*df.spec_strat_label + df.sens_strat_label
+    
+    df.to_csv("adeft_betabinom_dataset_processed.csv", sep=",", index=False)
