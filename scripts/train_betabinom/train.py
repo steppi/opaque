@@ -1,15 +1,15 @@
 import argparse
 import itertools as it
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GroupKFold
 
-from opaque.ood.utils import AnyMethodPipeline
 from opaque.betabinomial_regression import BetaBinomialRegressor
+from opaque.results import OpaqueResultsManager
 from opaque.stats import binomial_score
-from adeft_indra.anomaly_detection.results import ResultsManager
-
+from opaque.utils import AnyMethodPipeline
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -21,11 +21,11 @@ if __name__ == "__main__":
     parser.add_argument('type', help="One of sensitivity or specificity")
     parser.add_argument('--coeff_prior_type_list', nargs='+', type=str)
     parser.add_argument('--coeff_scale_list', nargs='+', type=float)
-    parser.add_argument('--numpy_seed', type=int, default=561)
-    parser.add_argument('--pymc3_seed', type=int, default=1729)
+    parser.add_argument('--numpy_seed', type=int)
+    parser.add_argument('--pymc_seed', type=int)
 
     args = parser.parse_args()
-    gen = np.random.RandomState(args.numpy_)
+    gen = np.random.RandomState(args.numpy_seed)
 
     df = pd.read_csv(args.data_path, sep=',')
     df.sample(frac=1, random_state=gen)
@@ -50,21 +50,20 @@ if __name__ == "__main__":
             'std_spec'
         ]
     ].values
-
-    if args.run_name not in ResultsManager.show_tables():
-        ResultsManager.add_table(args.run_name)
+    if args.run_name not in OpaqueResultsManager.show_tables():
+        OpaqueResultsManager.add_table(args.run_name)
 
     for prior_type, prior_scale in it.product(
             args.coeff_prior_type_list, args.coeff_scale_list
     ):
         key = f"{prior_type}:{prior_scale}"
-        if ResultsManager.get(args.run_name, key) is not None:
+        if OpaqueResultsManager.get(args.run_name, key) is not None:
             print(f"Results already computed for {key}")
             continue
         test_scores = []
         baseline_scores = []
         skill_scores = []
-        splits = GroupKFold(n_splits=10).split(df, groups=df.shortform)
+        splits = GroupKFold(n_splits=10).split(df, groups=df.group)
         for train_idx, test_idx in splits:
             model = AnyMethodPipeline(
                 [
@@ -74,7 +73,7 @@ if __name__ == "__main__":
                         BetaBinomialRegressor(
                             coefficient_prior_type=prior_type,
                             coefficient_prior_scale=prior_scale,
-                            random_seed=args.pymc3_seed,
+                            random_seed=args.pymc_seed,
                         ),
                     ),
                 ]
@@ -82,7 +81,8 @@ if __name__ == "__main__":
             model.fit(X[train_idx], y[train_idx])
             total_samples = np.sum(y[train_idx][:, 0])
             total_successes = np.sum(y[train_idx][:, 1])
-            p = total_successes / total_samples
+            # Smoothed using Bayesian estimate with uniform prior.
+            p = (total_successes + 1) / (total_samples + 2)
             baseline_preds = np.vstack(
                 [np.ones(len(test_idx)), np.full(len(test_idx), p)]
             ).T
@@ -93,7 +93,8 @@ if __name__ == "__main__":
             test_scores.append(test_score)
             baseline_scores.append(baseline_score)
             skill_scores.append(skill_score)
-        ResultsManager.insert(
+
+        OpaqueResultsManager.insert(
             args.run_name,
             key,
             {
