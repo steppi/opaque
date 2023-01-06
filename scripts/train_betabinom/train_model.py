@@ -4,7 +4,7 @@ import itertools as it
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import StratifiedGroupKFold
 
 from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.results import OpaqueResultsManager
@@ -25,16 +25,17 @@ if __name__ == "__main__":
     parser.add_argument('--pymc_seed', type=int)
 
     args = parser.parse_args()
-    gen = np.random.RandomState(args.numpy_seed)
 
     df = pd.read_csv(args.data_path, sep=',')
-    df.sample(frac=1, random_state=gen)
+    df.sample(frac=1, random_state=args.numpy_seed)
     if args.type == 'specificity':
         df = df[df.N_inlier > 0]
         y = df[['N_inlier', 'K_inlier']].values.astype(float)
+        strat_labels = df['spec_strat_label']
     elif args.type == 'sensitivity':
         df = df[df.N_outlier > 0]
         y = df[['N_outlier', 'K_outlier']].values.astype(float)
+        strat_labels = df['sens_strat_label']
 
     df['log_num_entrez'] = np.log(df.num_entrez + 1)
     df['log_num_mesh'] = np.log(df.num_mesh + 1)
@@ -63,7 +64,9 @@ if __name__ == "__main__":
         test_scores = []
         baseline_scores = []
         skill_scores = []
-        splits = GroupKFold(n_splits=10).split(df, groups=df.group)
+        splits = StratifiedGroupKFold(n_splits=10).split(
+            df, strat_labels, groups=df.group
+        )
         for train_idx, test_idx in splits:
             model = AnyMethodPipeline(
                 [

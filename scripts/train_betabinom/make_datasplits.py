@@ -13,17 +13,24 @@ If A and B have the same grounding, then their respective anomaly detectors
 will use the same exact training data. If A and B have the same agent text,
 then there will be a large overlap in their validation data, since the
 validation data will have come from the same adeft model.
+
+We also try to stratify by the size of the 
 """
 
-
+import argparse
 import networkx as nx
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 
 import opaque.locations as loc
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--numpy_seed", type=int)
+    args = parser.parse_args()
+
     df = pd.read_csv(loc.ADEFT_BETABINOM_DATASET_PATH, sep=',')
 
     # We're creating a graph structure on the datapoints in such a way that
@@ -59,9 +66,16 @@ if __name__ == "__main__":
         lambda x: index_to_group[x]
     )
 
-    splits = GroupShuffleSplit(
-        test_size=0.2, n_splits=2, random_state=1729
-    ).split(df, groups=df.group)
+    def get_size_group(x):
+        return max(3, int(np.log10(x + 1)))
+
+    df['spec_strat_label'] = df.N_inlier.apply(get_size_group)
+    df['sens_strat_label'] = df.N_outlier.apply(get_size_group)
+    df['joint_strat_label'] = 4*df.spec_strat_label + df.sens_strat_label
+
+    splits = StratifiedGroupKFold(
+        n_splits=5, random_state=args.numpy_seed, shuffle=True
+    ).split(df, df.joint_strat_label, groups=df.group)
     train_idx, test_idx = next(splits)
     train_df = df.iloc[train_idx]
     test_df = df.iloc[test_idx]
