@@ -21,7 +21,6 @@ DIAGNOSTIC_TEST_PRIOR_MODEL_PATH = os.path.join(
 ADEFT_BETABINOM_DATASET_PATH = os.path.join(
     OPAQUE_HOME, "adeft_betabinom_dataset.csv"
 )
-TEST_DATA_LOCATION = os.path.join(here, "tests", "data")
 S3_BUCKET = "adeft"
 S3_KEY_PREFIX = f"opaque/{__version__}"
 RESULTS_DB_PATH = os.path.join(OPAQUE_HOME, "opaque_results.db")

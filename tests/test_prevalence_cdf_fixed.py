@@ -10,7 +10,9 @@ import pytest
 import numpy as np
 
 from opaque.stats import prevalence_cdf_fixed
-from opaque.locations import TEST_DATA_LOCATION
+
+here = os.path.dirname(os.path.realpath(__file__))
+TEST_DATA_LOCATION = os.path.join(here, 'data')
 
 
 def get_simulation_results(test_data_filename):
