@@ -8,7 +8,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 
 from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.results import OpaqueResultsManager
-from opaque.stats import binomial_score
+from opaque.stats import NKLD
 from opaque.utils import AnyMethodPipeline
 
 if __name__ == "__main__":
@@ -85,13 +85,19 @@ if __name__ == "__main__":
             total_samples = np.sum(y[train_idx][:, 0])
             total_successes = np.sum(y[train_idx][:, 1])
             # Smoothed using Bayesian estimate with uniform prior.
-            p = (total_successes + 1) / (total_samples + 2)
-            baseline_preds = np.vstack(
-                [np.ones(len(test_idx)), np.full(len(test_idx), p)]
-            ).T
-            preds = model.predict(X[test_idx], N=y[test_idx, 0])
-            test_score = binomial_score(y[test_idx], preds)
-            baseline_score = binomial_score(y[test_idx], baseline_preds)
+            p_baseline = (total_successes + 1) / (total_samples + 2)
+
+            N = y[test_idx, 0]
+            K_true = y[test_idx, 1]
+            preds = model.predict(X[test_idx], N=N)
+            K_pred = preds[:, 1]
+
+            p_pred = K_pred / N
+            p_est = (K_true + 1) / (N + 2)
+
+
+            test_score = NKLD(p_est, p_pred)
+            baseline_score = NKLD(p_est, p_baseline)
             skill_score = 1 - test_score / baseline_score
             test_scores.append(test_score)
             baseline_scores.append(baseline_score)

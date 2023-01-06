@@ -1,5 +1,7 @@
 import logging
 import numpy as np
+import scipy.special as sc
+
 from typing import Any
 from numpy.typing import ArrayLike
 from scipy.special import betaln, digamma
@@ -72,25 +74,17 @@ def youdens_j_score(
 
 
 def KL_beta(a1, b1, a2, b2):
-    output = betaln(a1, b1) - betaln(a2, b2)
-    output -= (a2 - a1) * digamma(a1) + (b2 - b1) * digamma(b1)
-    output += (a2 - a1 + b2 - b1) * digamma(a1 + b1)
+    """Compute KL Divergence between two beta distributions."""
+    output = sc.betaln(a1, b1) - sc.betaln(a2, b2)
+    output -= (a2 - a1) * sc.digamma(a1) + (b2 - b1) * sc.digamma(b1)
+    output += (a2 - a1 + b2 - b1) * sc.digamma(a1 + b1)
     return output
 
 
-def binomial_score(y_true, y_pred):
-    assert y_true.shape == y_pred.shape
-    assert y_true.shape[1] == 2
-    # Require all samples to have at least one trial
-    assert np.all((y_true[:, 0] > 0) & (y_pred[:, 0] > 0))
-    N_true, K_true = y_true[:, 0], y_true[:, 1]
-    N_pred, K_pred = y_pred[:, 0], y_pred[:, 1]
-    # Renormalize predictions to have same number of trials as true.
-    # This makes it convenient to use in GridSearchCV, where it's not easy
-    # to pass the number of trials to predict.
-    if not np.all(N_true == N_pred):
-        K_pred = K_pred * N_true / N_pred
-    p_hat_true = (K_true + 1) / (N_true + 2)
-    var = N_true * p_hat_true * (1 - p_hat_true)
-    residuals = (K_true - K_pred)**2 / var
-    return np.sum(residuals) / len(residuals)
+def NKLD(p_true, p_pred):
+    """Compute Normalized Kullback-Leibler Divergence Metric."""
+    KL = (
+        p_true * np.log(p_true / p_pred)
+        + (1 - p_true) * np.log((1 - p_true) / (1 - p_pred))
+    )
+    return np.mean(2 * sc.expit(KL) - 1)
