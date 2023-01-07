@@ -75,7 +75,7 @@ if __name__ == "__main__":
     )
 
     def get_size_group(x):
-        return max(2, int(np.log10(x + 1)))
+        return max(3, int(np.ceil(np.log10(x + 1))))
 
     df['spec_strat_label'] = df.N_inlier.apply(get_size_group)
     df['sens_strat_label'] = df.N_outlier.apply(get_size_group)
