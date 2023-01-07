@@ -154,5 +154,6 @@ if __name__ == "__main__":
                     "hps": {"coeff_scale", "prior_type"},
                     "outer_split": i,
                     "inner_split": j,
+                    "target_type": target_type,
                 }
             )
