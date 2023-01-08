@@ -14,6 +14,7 @@ from opaque.utils import AnyMethodPipeline
 
 
 def get_feature_array(df):
+    """Pull out array of predictors from dataframe."""
     return df[
         [
             'nu',
@@ -37,12 +38,18 @@ def main(
         n_inner_splits=5,
 ):
     df = pd.read_csv(data_path, sep=',')
+
+    # Generate log num training texts features, (smooth with +1 to avoid log 0).
+    # Track separately if texts came from mesh annotations or entrez.
     df['log_num_entrez'] = np.log(df.num_entrez + 1)
     df['log_num_mesh'] = np.log(df.num_mesh + 1)
 
     if run_name not in OpaqueResultsManager.show_tables():
         OpaqueResultsManager.add_table(run_name)
 
+
+    # We use nested cross validation. Tune hyperparameters on inner splits.
+    # Test generalization error on outer splits.
     outer_splits = list(
         StratifiedGroupKFold(n_splits=n_outer_splits).split(
             df, df.joint_strat_label, groups=df.group
@@ -78,7 +85,8 @@ def main(
             y_outer_test = df_outer_test[
                 ['N_inlier', 'K_inlier']
             ].values.astype(float)
-
+            # For spec, Stratify loosely by number of inlier samples N_inlier.
+            # max(3, ceil(log10(N_inlier + 1)))
             strat_label = df_outer_train.spec_strat_label
 
         else:
@@ -91,7 +99,8 @@ def main(
             y_outer_test = df_outer_test[
                 ['N_outlier', 'K_outlier']
             ].values.astype(float)
-
+            # For sens, Stratify loosely by number of inlier samples N_outlier.
+            # max(3, ceil(log10(N_outlier + 1)))
             strat_label = df_outer_train.sens_strat_label
     
         X_outer_train = get_feature_array(df_outer_train)
@@ -123,6 +132,7 @@ def main(
             model.fit(
                 X_outer_train[inner_train_idx], y_outer_train[inner_train_idx]
             )
+
             total_samples = np.sum(y_outer_train[inner_train_idx][:, 0])
             total_successes = np.sum(y_outer_train[inner_train_idx][:, 1])
             # Smoothed using Bayesian estimate with uniform prior.
@@ -130,17 +140,28 @@ def main(
 
             N = y_outer_train[inner_test_idx, 0]
             K_true = y_outer_train[inner_test_idx, 1]
-            preds = model.predict(X_outer_train[inner_test_idx, :], N=N)
-            K_pred = preds[:, 1]
 
+            # Predict prevalence for each case based on model.
+            preds = model.predict(X_outer_train[inner_test_idx, :], N=N)
+            # Betabinomial regression predicts number of successes. Turn this
+            # into a prevalence estimate.
+            K_pred = preds[:, 1]
             p_pred = K_pred / N
-            # Population prevalence only estimated based on sample. Use
-            # smoothing by assuming uniform prior.
+
+            # Need to estimate true population prevalence based on sample.
+            # Smooth using Bayesian estimate with uniform prior.
             p_est = (K_true + 1) / (N + 2)
 
+            # Compare predicted and estimated prevalences with
+            # Normalied Kulback Leibler divergence, the most commonly used
+            # metric for quantification learning. We try to control for the
+            # bias due to varying sample sizes N by stratifying the CV splits
+            # roughly by sample size.
             nkld_score = NKLD(p_est, p_pred)
             baseline_nkld_score = NKLD(p_est, p_baseline)
 
+            # Save results. We don't even try to aggregate here. These will
+            # be processed by another script.
             OpaqueResultsManager.insert(
                 run_name,
                 key,
