@@ -168,7 +168,7 @@ def main(
                 {
                     "nkld_score": nkld_score,
                     "baseline_score": baseline_nkld_score,
-                    "hps": {"coeff_scale", "prior_type"},
+                    "hps": {"coeff_scale": coeff_scale, "prior_type": prior_type},
                     "outer_split": i,
                     "inner_split": j,
                     "target_type": target_type,
