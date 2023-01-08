@@ -48,7 +48,7 @@ if __name__ == "__main__":
         OpaqueResultsManager.add_table(args.run_name)
 
     outer_splits = list(
-        StratifiedGroupKFold(n_splits=10).split(
+        StratifiedGroupKFold(n_splits=5).split(
             df, df.joint_strat_label, groups=df.group
         )
     )
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         X_outer_train = get_feature_array(df_outer_train)
         X_outer_test = get_feature_array(df_outer_test)
 
-        inner_splits = StratifiedGroupKFold(n_splits=10).split(
+        inner_splits = StratifiedGroupKFold(n_splits=5).split(
             X_outer_train, strat_label, groups=df_outer_train.group
         )
 
