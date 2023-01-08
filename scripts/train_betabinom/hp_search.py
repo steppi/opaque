@@ -1,8 +1,9 @@
 import argparse
 import itertools as it
-
 import numpy as np
+import os
 import pandas as pd
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedGroupKFold
 
@@ -26,26 +27,21 @@ def get_feature_array(df):
     ].values
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Tune parameters for beta-binomial models of"
-        " sensitivity and specificity."
-    )
-    parser.add_argument('data_path')
-    parser.add_argument('run_name')
-    parser.add_argument('--coeff_prior_type_list', nargs='+', type=str)
-    parser.add_argument('--coeff_prior_scale_list', nargs='+', type=float)
-    parser.add_argument('--numpy_seed', type=int)
-    parser.add_argument('--pymc_seed', type=int)
-
-    args = parser.parse_args()
-
-    df = pd.read_csv(args.data_path, sep=',')
+def main(
+        data_path,
+        run_name,
+        coeff_prior_type_list,
+        coeff_prior_scale_list,
+        pymc_seed=None,
+        n_outer_splits=5,
+        n_inner_splits=5,
+):
+    df = pd.read_csv(data_path, sep=',')
     df['log_num_entrez'] = np.log(df.num_entrez + 1)
     df['log_num_mesh'] = np.log(df.num_mesh + 1)
 
-    if args.run_name not in OpaqueResultsManager.show_tables():
-        OpaqueResultsManager.add_table(args.run_name)
+    if run_name not in OpaqueResultsManager.show_tables():
+        OpaqueResultsManager.add_table(run_name)
 
     outer_splits = list(
         StratifiedGroupKFold(n_splits=5).split(
@@ -64,8 +60,8 @@ if __name__ == "__main__":
     ) in enumerate(
         it.product(
             outer_splits,
-            args.coeff_prior_type_list,
-            args.coeff_prior_scale_list,
+            coeff_prior_type_list,
+            coeff_prior_scale_list,
             ["specificity", "sensitivity"],
         )
     ):
@@ -107,7 +103,7 @@ if __name__ == "__main__":
 
         for j, (inner_train_idx, inner_test_idx) in enumerate(inner_splits):
             key = f"{target_type}:{prior_type}:{coeff_scale}:{i}:{j}"
-            if OpaqueResultsManager.get(args.run_name, key) is not None:
+            if OpaqueResultsManager.get(run_name, key) is not None:
                 print(f"Results already computed for {key}")
                 continue
 
@@ -119,7 +115,7 @@ if __name__ == "__main__":
                         BetaBinomialRegressor(
                             coefficient_prior_type=prior_type,
                             coefficient_prior_scale=coeff_scale,
-                            random_seed=args.pymc_seed,
+                            random_seed=pymc_seed,
                         ),
                     ),
                 ]
@@ -146,7 +142,7 @@ if __name__ == "__main__":
             baseline_nkld_score = NKLD(p_est, p_baseline)
 
             OpaqueResultsManager.insert(
-                args.run_name,
+                run_name,
                 key,
                 {
                     "nkld_score": nkld_score,
@@ -157,3 +153,35 @@ if __name__ == "__main__":
                     "target_type": target_type,
                 }
             )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("run_name")
+    args = parser.parse_args()
+
+    here = os.path.dirname(os.path.realpath(__file__))
+    data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
+    if not os.path.exists(data_path):
+        print("Processed dataset has not been generated. First run "
+              "make_datasplits.py.")
+
+    # High entropy seed generated with snippet.
+    # ---------------------------
+    # from numpy.random import SeedSequence
+    #
+    # SeedSequence().entropy
+    pymc_seed = 1612814232824194042486396718624000821
+
+    coeff_prior_type_list = ["normal", "laplace"]
+    coeff_prior_scale_list = np.exp2(np.arange(-4, 10))
+        
+    main(
+        data_path,
+        args.run_name,
+        coeff_prior_type_list,
+        coeff_prior_scale_list,
+        pymc_seed=pymc_seed,
+        n_outer_splits=5,
+        n_inner_splits=5,
+    )
