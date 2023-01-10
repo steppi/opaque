@@ -57,20 +57,15 @@ def main(
     )
 
     for (
-            i,
-            (
-                (outer_train_idx, outer_test_idx),
-                prior_type,
-                coeff_scale,
-                target_type,
-            ),
-    ) in enumerate(
-        it.product(
-            outer_splits,
-            coeff_prior_type_list,
-            coeff_prior_scale_list,
-            ["specificity", "sensitivity"],
-        )
+            (i, (outer_train_idx, outer_test_idx)),
+            prior_type,
+            coeff_scale,
+            target_type,
+    ) in it.product(
+        enumerate(outer_splits),
+        coeff_prior_type_list,
+        coeff_prior_scale_list,
+        ["specificity", "sensitivity"],
     ):
         df_outer_train = df.iloc[outer_train_idx, :]
         df_outer_test = df.iloc[outer_test_idx, :]
