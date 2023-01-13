@@ -288,6 +288,16 @@ class DiagnosticTestPriorModel:
             spec_beta_var=spec_shape_var[0, 1],
         )
 
+    def batch_predict_shape_params(self, X):
+        X = np.asarray(X)
+        sens_shape, sens_shape_var = self.sens_pipeline.apply_method(
+            'predict_shape_params', X
+        )
+        spec_shape, spec_shape_var = self.spec_pipeline.apply_method(
+            'predict_shape_params', X
+        )
+        return np.hstack([sens_shape, spec_shape])
+
     def dump(self, filepath):
         sens_estimator = self.sens_pipeline.steps[1][1]
         sens_transformer = self.sens_pipeline.steps[0][1]
