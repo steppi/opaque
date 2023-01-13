@@ -1,5 +1,5 @@
 import numpy as np
-import pickle
+import cloudpickle as pickle
 import pymc as pm
 from typing import NamedTuple
 
@@ -316,10 +316,48 @@ class DiagnosticTestPriorModel:
                 file_handle,
             )
 
+    def dumps(self):
+        sens_estimator = self.sens_pipeline.steps[1][1]
+        sens_transformer = self.sens_pipeline.steps[0][1]
+        spec_estimator = self.spec_pipeline.steps[1][1]
+        spec_transformer = self.spec_pipeline.steps[0][1]
+        sens_model_info = sens_estimator.get_model_info()
+        spec_model_info = spec_estimator.get_model_info()
+        info = {
+                    'sens_model_info': sens_model_info,
+                    'sens_transformer': sens_transformer,
+                    'spec_model_info': spec_model_info,
+                    'spec_transformer': spec_transformer,
+                }
+        return pickle.dumps(info)
+
     @classmethod
     def load(cls, filepath):
         with open(filepath, 'rb') as f:
             info = pickle.load(f)
+        sens_model_info = info['sens_model_info']
+        sens_transformer = info['sens_transformer']
+        spec_model_info = info['spec_model_info']
+        spec_transformer = info['spec_transformer']
+        sens_estimator = BetaBinomialRegressor.load(sens_model_info)
+        spec_estimator = BetaBinomialRegressor.load(spec_model_info)
+        sens_pipeline = AnyMethodPipeline(
+            [
+                ('transform', sens_transformer),
+                ('estimator', sens_estimator),
+            ]
+        )
+        spec_pipeline = AnyMethodPipeline(
+            [
+                ('transform', spec_transformer),
+                ('estimator', spec_estimator),
+            ]
+        )
+        return cls(sens_pipeline, spec_pipeline)
+
+    @classmethod
+    def loads(cls, data):
+        info = pickle.loads(data)
         sens_model_info = info['sens_model_info']
         sens_transformer = info['sens_transformer']
         spec_model_info = info['spec_model_info']
