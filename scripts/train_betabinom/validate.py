@@ -204,6 +204,7 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
     ] = shape_params
 
     results = {
+        "split": i,
         "sens_model_metrics": results_sens,
         "spec_model_metrics": results_spec,
         "test_df": df_test_joint,
