@@ -28,11 +28,23 @@ def get_feature_array(df):
         ]
     ].values
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument("run_name")
+args = parser.parse_args()
+
 here = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
-run_name = "validate_debug4"
+run_name = args.run_name
 
-rng = np.random.default_rng(1729)
+
+# High entropy seed generated with
+# ---------------------------
+# from numpy.random import SeedSequence
+#
+# SeedSequence().entropy
+seed = 29574310898661272202790385091240407850
+rng = np.random.default_rng(seed)
 
 best_hps = pd.read_csv("best_hps_inner.csv", sep=",")
 df = pd.read_csv(data_path, sep=',')
