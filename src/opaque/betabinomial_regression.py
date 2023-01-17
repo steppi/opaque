@@ -17,12 +17,18 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             coefficient_prior_type="normal",
             coefficient_prior_scale=100.0,
             intercept_prior_scale=1000.0,
+            random_state=None,
             **sampler_args,
     ):
         self.coefficient_prior_type = coefficient_prior_type
         self.coefficient_prior_scale = coefficient_prior_scale
         self.intercept_prior_scale = intercept_prior_scale
+        if random_state is None:
+            random_state = np.random.default_rng()
+        elif isinstance(random_state, int):
+            random_state = np.random.default_rng(random_state)
 
+        self.random_state = random_state
         self.mean_use_cols = None
         self.disp_use_cols = None
         self.model_ = None
@@ -120,10 +126,16 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         assert y.shape[1] == 2
         N, K = y[:, 0], y[:, 1]
 
+        sampler_args = self.sampler_args.copy()
+        if "random_seed" not in self.sampler_args:
+            sampler_args["random_seed"] = int(
+                self.random_state.integers(0, 2**32 + 1)
+           )
+
         with self._setup_model(
             X, N, K, mean_use_cols=mean_use_cols, disp_use_cols=disp_use_cols
         ) as model:
-            trace = pm.sample(**self.sampler_args)
+            trace = pm.sample(**sampler_args)
             self.trace_ = trace
             self.model_ = model
         self.ncols_ = X.shape[1]
@@ -136,6 +148,12 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         X, N = check_X_y(X, N)
         X_mean = X[:] if mean_use_cols is None else X[:, mean_use_cols]
         X_disp = X[:] if disp_use_cols is None else X[:, disp_use_cols]
+
+        if "random_seed" not in pymc_args:
+            pymc_args["random_seed"] = int(
+                self.random_state.integers(0, 2**32 + 1)
+            )
+            
         with self.model_:
             pm.set_data(
                 {
