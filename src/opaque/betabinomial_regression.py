@@ -33,20 +33,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             sampler_args["progressbar"] = False
         self.sampler_args = sampler_args
 
-    def fit(
-            self,
-            X,
-            y,
-            mean_use_cols=None,
-            disp_use_cols=None,
-    ):
-        self.mean_use_cols = mean_use_cols
-        self.disp_use_cols = disp_use_cols
-        X, y = check_array(X), check_array(y)
-        assert X.shape[0] == y.shape[0]
-        assert y.shape[1] == 2
-        N, K = y[:, 0], y[:, 1]
-
+    def _setup_model(self, X, N, K, mean_use_cols=None, disp_use_cols=None):
         with pm.Model() as model:
             intercept_mean = pm.Normal(
                 "intercept_mean",
@@ -117,9 +104,29 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
                 beta=(1 - mu) * nu,
                 observed=K_obs,
             )
+        return model
+
+    def fit(
+            self,
+            X,
+            y,
+            mean_use_cols=None,
+            disp_use_cols=None,
+    ):
+        self.mean_use_cols = mean_use_cols
+        self.disp_use_cols = disp_use_cols
+        X, y = check_array(X), check_array(y)
+        assert X.shape[0] == y.shape[0]
+        assert y.shape[1] == 2
+        N, K = y[:, 0], y[:, 1]
+
+        with self._setup_model(
+            X, N, K, mean_use_cols=mean_use_cols, disp_use_cols=disp_use_cols
+        ) as model:
             trace = pm.sample(**self.sampler_args)
             self.trace_ = trace
             self.model_ = model
+        self.ncols_ = X.shape[1]
 
     def get_posterior_predictions(self, X, N, **pymc_args):
         check_is_fitted(self)
@@ -170,8 +177,8 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
     def get_model_info(self):
         check_is_fitted(self)
         return {
-            'model': self.model_,
             'trace': dump_trace(self.trace_),
+            'ncols': self.ncols_,
             'params': self.get_params(),
             'sampler_args': self.sampler_args,
             'mean_use_cols': self.mean_use_cols,
@@ -183,10 +190,22 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         params = model_info['params']
         sampler_args = model_info['sampler_args']
         instance = cls(**params, **sampler_args)
-        instance.model_ = model_info['model']
         instance.trace_ = load_trace(model_info['trace'])
         instance.mean_use_cols = model_info['mean_use_cols']
         instance.disp_use_cols = model_info['disp_use_cols']
+
+        ncols = model_info["ncols"]
+        dummy_X = np.zeros((1, ncols))
+        dummy_N = np.array([1.0])
+        dummy_K = np.array([0.0])
+
+        instance.model_ = instance._setup_model(
+            dummy_X,
+            dummy_N,
+            dummy_K,
+            mean_use_cols=instance.mean_use_cols,
+            disp_use_cols=instance.disp_use_cols,
+        )
         return instance
 
 
@@ -298,25 +317,7 @@ class DiagnosticTestPriorModel:
         )
         return np.hstack([sens_shape, spec_shape])
 
-    def dump(self, filepath):
-        sens_estimator = self.sens_pipeline.steps[1][1]
-        sens_transformer = self.sens_pipeline.steps[0][1]
-        spec_estimator = self.spec_pipeline.steps[1][1]
-        spec_transformer = self.spec_pipeline.steps[0][1]
-        sens_model_info = sens_estimator.get_model_info()
-        spec_model_info = spec_estimator.get_model_info()
-        with open(filepath, 'wb') as file_handle:
-            pickle.dump(
-                {
-                    'sens_model_info': sens_model_info,
-                    'sens_transformer': sens_transformer,
-                    'spec_model_info': spec_model_info,
-                    'spec_transformer': spec_transformer,
-                },
-                file_handle,
-            )
-
-    def dumps(self):
+    def get_model_info(self):
         sens_estimator = self.sens_pipeline.steps[1][1]
         sens_transformer = self.sens_pipeline.steps[0][1]
         spec_estimator = self.spec_pipeline.steps[1][1]
@@ -325,43 +326,18 @@ class DiagnosticTestPriorModel:
         spec_model_info = spec_estimator.get_model_info()
         info = {
                     'sens_model_info': sens_model_info,
-                    'sens_transformer': sens_transformer,
+                    'sens_transformer': pickle.dumps(sens_transformer),
                     'spec_model_info': spec_model_info,
-                    'spec_transformer': spec_transformer,
+                    'spec_transformer': pickle.dumps(spec_transformer),
                 }
-        return pickle.dumps(info)
+        return info
 
     @classmethod
-    def load(cls, filepath):
-        with open(filepath, 'rb') as f:
-            info = pickle.load(f)
-        sens_model_info = info['sens_model_info']
-        sens_transformer = info['sens_transformer']
-        spec_model_info = info['spec_model_info']
-        spec_transformer = info['spec_transformer']
-        sens_estimator = BetaBinomialRegressor.load(sens_model_info)
-        spec_estimator = BetaBinomialRegressor.load(spec_model_info)
-        sens_pipeline = AnyMethodPipeline(
-            [
-                ('transform', sens_transformer),
-                ('estimator', sens_estimator),
-            ]
-        )
-        spec_pipeline = AnyMethodPipeline(
-            [
-                ('transform', spec_transformer),
-                ('estimator', spec_estimator),
-            ]
-        )
-        return cls(sens_pipeline, spec_pipeline)
-
-    @classmethod
-    def loads(cls, data):
-        info = pickle.loads(data)
-        sens_model_info = info['sens_model_info']
-        sens_transformer = info['sens_transformer']
-        spec_model_info = info['spec_model_info']
-        spec_transformer = info['spec_transformer']
+    def load(cls, model_info):
+        sens_model_info = model_info['sens_model_info']
+        sens_transformer = pickle.loads(model_info['sens_transformer'])
+        spec_model_info = model_info['spec_model_info']
+        spec_transformer = pickle.loads(model_info['spec_transformer'])
         sens_estimator = BetaBinomialRegressor.load(sens_model_info)
         spec_estimator = BetaBinomialRegressor.load(spec_model_info)
         sens_pipeline = AnyMethodPipeline(
