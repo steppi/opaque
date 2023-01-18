@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 from opaque.results import OpaqueResultsManager
 from opaque.stats import highest_density_interval
@@ -217,3 +218,6 @@ for key, data in results:
     data["coverage_95_neg"] = coverage_95_neg
     data["coverage_99_neg"] = coverage_99_neg
 
+
+with open("validation_results.pkl", "wb") as f:
+    pickle.dump(results, f)
