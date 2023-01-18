@@ -17,7 +17,7 @@ from opaque.utils import AnyMethodPipeline
 
 parser = argparse.ArgumentParser()
 parser.add_argument("run_name")
-args = parser.parse_args
+args = parser.parse_args()
 
 here = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
