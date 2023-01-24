@@ -6,6 +6,7 @@ from typing import Any
 from numpy.typing import ArrayLike
 from scipy.special import betaln, digamma
 from sklearn.utils.validation import column_or_1d
+from statsmodels.stats.proportion import proportion_confint
 
 
 logger = logging.getLogger(__file__)
@@ -88,3 +89,21 @@ def NKLD(p_true, p_pred):
         + (1 - p_true) * np.log((1 - p_true) / (1 - p_pred))
     )
     return np.mean(2 * sc.expit(KL) - 1)
+
+
+def simple_prevalence_interval(
+        n, t, sens, spec, alpha=0.1, method="beta"
+):
+    """Compute simple prevalence interval based on linear transform.
+
+    phi = sens * theta + (1 - spec) * (1 - theta)
+
+    Where phi is proportion of positive tests and theta is unknown
+    prevalence value.
+    """
+    a, b = proportion_confint(t, n, alpha=alpha, method=method)
+    J = sens + spec - 1
+    fnr = 1 - spec
+    c = min(max(0, (a - fnr) / J), 1)
+    d = max(min(1, (b - fnr) / J), 0)
+    return c, d
