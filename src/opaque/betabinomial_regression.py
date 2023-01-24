@@ -194,18 +194,22 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
 
     def get_model_info(self):
         check_is_fitted(self)
+        params = self.get_params()
+        # Don't save current random state of model.
+        del params["random_state"]
         return {
             'trace': dump_trace(self.trace_),
             'ncols': self.ncols_,
-            'params': self.get_params(),
+            'params': params,
             'sampler_args': self.sampler_args,
             'mean_use_cols': self.mean_use_cols,
             'disp_use_cols': self.disp_use_cols,
         }
 
     @classmethod
-    def load(cls, model_info):
+    def load(cls, model_info, random_state=None):
         params = model_info['params']
+        params["random_state"] = random_state
         sampler_args = model_info['sampler_args']
         instance = cls(**params, **sampler_args)
         instance.trace_ = load_trace(model_info['trace'])
@@ -344,20 +348,37 @@ class DiagnosticTestPriorModel:
         spec_model_info = spec_estimator.get_model_info()
         info = {
                     'sens_model_info': sens_model_info,
-                    'sens_transformer': pickle.dumps(sens_transformer),
+                    'sens_transformer': pickle.dumps(
+                        sens_transformer
+                    ).decode('latin-1'),
                     'spec_model_info': spec_model_info,
-                    'spec_transformer': pickle.dumps(spec_transformer),
+                    'spec_transformer': pickle.dumps(
+                        spec_transformer
+                    ).decode('latin-1'),
                 }
         return info
 
     @classmethod
-    def load(cls, model_info):
+    def load(
+            cls,
+            model_info,
+            spec_model_random_state=None,
+            sens_model_random_state=None,
+    ):
         sens_model_info = model_info['sens_model_info']
-        sens_transformer = pickle.loads(model_info['sens_transformer'])
+        sens_transformer = pickle.loads(
+            model_info['sens_transformer'].encode('latin-1')
+        )
         spec_model_info = model_info['spec_model_info']
-        spec_transformer = pickle.loads(model_info['spec_transformer'])
-        sens_estimator = BetaBinomialRegressor.load(sens_model_info)
-        spec_estimator = BetaBinomialRegressor.load(spec_model_info)
+        spec_transformer = pickle.loads(
+            model_info['spec_transformer'].encode('latin-1')
+        )
+        sens_estimator = BetaBinomialRegressor.load(
+            sens_model_info, random_state=sens_model_random_state
+        )
+        spec_estimator = BetaBinomialRegressor.load(
+            spec_model_info, random_state=spec_model_random_state
+        )
         sens_pipeline = AnyMethodPipeline(
             [
                 ('transform', sens_transformer),
