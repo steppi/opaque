@@ -1,12 +1,18 @@
+import ctypes
 import logging
 import numpy as np
 import scipy.special as sc
 
-from typing import Any
+
+from numba import int64
+from numba import float64
+from numba import vectorize
+from numba.extending import get_cython_function_address
 from numpy.typing import ArrayLike
 from scipy.special import betaln, digamma
 from sklearn.utils.validation import column_or_1d
 from statsmodels.stats.proportion import proportion_confint
+from typing import Any
 
 
 logger = logging.getLogger(__file__)
@@ -107,3 +113,25 @@ def simple_prevalence_interval(
     c = min(max(0, (a - fnr) / J), 1)
     d = max(min(1, (b - fnr) / J), 0)
     return c, d
+
+
+def _make_prevalence_ufunc(function_name):
+    addr = get_cython_function_address("opaque.stats._stats", function_name)
+    functype = ctypes.CFUNCTYPE(
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_int,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_double,
+    )
+    func_for_numba = functype(addr)
+    @vectorize([float64(float64, int64, int64, float64, float64)])
+    def ufunc(theta, n, t, sensitivity, specificity):
+        return func_for_numba(theta, n, t, sensitivity, specificity)
+    return ufunc
+
+
+prevalence_cdf_fixed = _make_prevalence_ufunc("prevalence_cdf_fixed")
+prevalence_cdf_positive_fixed = _make_prevalence_ufunc("prevalence_cdf_positive_fixed")
+prevalence_cdf_negative_fixed = _make_prevalence_ufunc("prevalence_cdf_negative_fixed")
