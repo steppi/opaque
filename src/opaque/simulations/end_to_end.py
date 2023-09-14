@@ -147,8 +147,8 @@ class EndtoEndSimulator:
         points = []
         rows = []
         for i, row in data_test.iterrows():
-            n = row['N_outlier'] + row['N_inlier']
-            t = row['K_outlier'] + row['N_inlier'] - row['K_inlier']
+            n = int(row['N_outlier'] + row['N_inlier'])
+            t = int(row['K_outlier'] + row['N_inlier'] - row['K_inlier'])
             theta = row['theta']
             sens_a_est, sens_b_est = sens_shape[i, :]
             spec_a_est, spec_b_est = spec_shape[i, :]

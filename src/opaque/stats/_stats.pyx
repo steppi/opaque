@@ -86,7 +86,7 @@ cdef double log_prevalence_cdf_fixed(
     return output
 
 
-cpdef api double prevalence_cdf_fixed(
+cdef api double prevalence_cdf_fixed(
         double theta, int n, int t, double sensitivity, double specificity
 ) nogil:
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
@@ -98,7 +98,7 @@ cpdef api double prevalence_cdf_fixed(
 
 
 @cython.cdivision(True)
-cpdef api double prevalence_cdf_positive_fixed(
+cdef api double prevalence_cdf_positive_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) nogil:
     cdef:
@@ -113,7 +113,7 @@ cpdef api double prevalence_cdf_positive_fixed(
 
 
 @cython.cdivision(True)
-cpdef api double prevalence_cdf_negative_fixed(
+cdef api double prevalence_cdf_negative_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) nogil:
     cdef:
