@@ -49,7 +49,7 @@ cdef double K(double p, double q, double x, double tol) nogil:
 
 
 @cython.cdivision(True)
-cdef double log_betainc(double p, double q, double x) nogil:
+cpdef double log_betainc(double p, double q, double x) nogil:
     """Returns log of incomplete beta function."""
     cdef double output
     if x <= p/(p + q):
@@ -76,15 +76,17 @@ cdef double log_prevalence_cdf_fixed(
     if theta <= 0:
         return -INFINITY
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
+    if c2 <= 0:
+        return log(theta)
     logY = log_betainc(t + 1, n - t + 1, c1)
-    output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*(theta)), logY)
+    output = log_diff(log_betainc(t + 1, n - t + 1, c1 + c2*theta), logY)
     output -= log_diff(log_betainc(t + 1, n - t + 1, c1 + c2), logY)
     if isnan(output):
         output = log(theta)
     return output
 
 
-cdef api double prevalence_cdf_fixed(
+cpdef api double prevalence_cdf_fixed(
         double theta, int n, int t, double sensitivity, double specificity
 ) nogil:
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
@@ -96,22 +98,30 @@ cdef api double prevalence_cdf_fixed(
 
 
 @cython.cdivision(True)
-cdef api double prevalence_cdf_positive_fixed(
+cpdef api double prevalence_cdf_positive_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) nogil:
     cdef:
         double c1, c2, theta
+    if psi >= 1:
+        return 1.0
+    if psi <= 0:
+        return 0.0
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
     theta = c1*psi / (c1 + c2 - c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
 @cython.cdivision(True)
-cdef api double prevalence_cdf_negative_fixed(
+cpdef api double prevalence_cdf_negative_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) nogil:
     cdef:
         double c1, c2, theta
+    if psi >= 1:
+        return 1.0
+    if psi <= 0:
+        return 0.0
     c1, c2 = 1 - specificity, sensitivity + specificity - 1
     theta = (1 - c1)*psi / (1 - c1 - c2 + c2*psi)
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
