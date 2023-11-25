@@ -14,6 +14,7 @@ extensions = [
     Extension(
         "opaque.stats._stats",
         ["src/opaque/stats/_stats" + ext],
+        include_dirs=[inc_path],
     ),
     Extension(
         "opaque.ood._tree_kernel",
