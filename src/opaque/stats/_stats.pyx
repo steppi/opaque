@@ -1,10 +1,6 @@
 # distutils: language=c++
-# cython: boundscheck=False
-# cython: initializedcheck=False
-# cython: wraparound=False
 # cython: cdivision=True
 # cython: cpow=True
-
 
 cimport cython
 cimport numpy as np
