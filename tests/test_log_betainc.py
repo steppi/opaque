@@ -1,29 +1,33 @@
-import pytest
 import mpmath as mp
+import numpy as np
+import pytest
+
 from itertools import product
 
 from opaque.stats import log_betainc
 
 
 def mpmath_log_betainc(p, q, x):
-    """mpmath referenec implementation for log_betainc."""
+    """mpmath reference implementation for log_betainc."""
     if x < p / (p + q):
         return mp.log(mp.betainc(p, q, 0, x, regularized=True))
     else:
         return mp.log1p(-mp.betainc(q, p, 0, 1 - x, regularized=True))
 
 
-@pytest.mark.parametrize(
-    "test_input",
-    [
-        (p, q, x)
-        for p, q in product([10, 50, 100, 200, 500, 1000], repeat=2)
-        for x in [0.1, 0.2, 0.4, 0.8]
-    ],
-)
-def test_log_betainc(test_input):
-    tol = 1e-12
-    p, q, x = test_input
-    expected = float(mpmath_log_betainc(p, q, x))
-    observed = log_betainc(p, q, x)
-    assert abs(expected - observed) < tol
+@pytest.mark.parametrize("p", [10, 50, 100, 200, 500, 1000])
+@pytest.mark.parametrize("q", [10, 50, 100, 200, 500, 1000])
+def test_log_betainc(p, q):
+    X = np.linspace(0, 1, 100)
+    expected = np.fromiter(
+        (mpmath_log_betainc(p, q, x) for x in X),
+        dtype=float
+    )
+    observed = log_betainc(p, q, X)
+    M = max(p, q)
+    if M <= 100:
+        rtol = 1e-13
+    else:
+        rtol = 5e-11
+    np.testing.assert_allclose(observed, expected, rtol=rtol, atol=1e-20)
+

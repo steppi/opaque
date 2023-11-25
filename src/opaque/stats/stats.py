@@ -21,6 +21,11 @@ from typing import Any
 logger = logging.getLogger(__file__)
 
 
+def _round_interval(left, right, digits=6):
+    scale = 10**digits
+    return (np.floor(left * scale) / scale, np.ceil(right * scale) / scale)
+
+
 def true_positives(
         y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
 ) -> float:
@@ -122,6 +127,22 @@ def simple_prevalence_interval(
     d = max(min(1, (b - fnr) / J), 0)
     return c, d
 
+
+def _make_log_betainc_ufunc():
+    addr = get_cython_function_address("opaque.stats._stats", "log_betainc")
+    functype = ctypes.CFUNCTYPE(
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_double,
+        ctypes.c_double,
+    )
+    func_for_numba = functype(addr)
+    @vectorize([float64(float64, float64, float64)])
+    def ufunc(p, q, x):
+        return func_for_numba(p, q, x)
+    return ufunc
+
+log_betainc = _make_log_betainc_ufunc()
 
 def _make_prevalence_ufunc(function_name):
     addr = get_cython_function_address("opaque.stats._stats", function_name)
@@ -295,9 +316,9 @@ def inverse_prevalence_cdf(
     return root_scalar(
         f,
         method="brentq",
-        bracket = [0, 1],
+        bracket = [np.nextafter(0, -1), np.nextafter(1, 2)],
         xtol=np.nextafter(0, 1),
-    ).root
+    ).root 
 
 
 def equal_tailed_interval(
@@ -358,7 +379,7 @@ def equal_tailed_interval(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
-    return [
+    left, right = (
         inverse_prevalence_cdf(
             alpha/2,
             n,
@@ -381,7 +402,8 @@ def equal_tailed_interval(
             log2_num_qmc_points=log2_num_qmc_points,
             mode=mode
         ),
-    ]
+    )
+    return _round_interval(left, right)
 
 
 def highest_density_interval(
@@ -442,16 +464,15 @@ def highest_density_interval(
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
     def f(x):
-        return (
-            inverse_prevalence_cdf(
+        A = inverse_prevalence_cdf(
                 x + 1 - alpha, n, t, sens_a, sens_b, spec_a, spec_b,
                 log2_num_qmc_points=log2_num_qmc_points, mode=mode
-            ) -
-            inverse_prevalence_cdf(
-                x, n, t, sens_a, sens_b, spec_a, spec_b,
-                log2_num_qmc_points=log2_num_qmc_points, mode=mode
-            )
         )
+        B = inverse_prevalence_cdf(
+            x, n, t, sens_a, sens_b, spec_a, spec_b,
+            log2_num_qmc_points=log2_num_qmc_points, mode=mode
+        )
+        return A - B
 
     res = minimize_scalar(f, method="bounded", bounds=[0, alpha])
     right = inverse_prevalence_cdf(
@@ -459,4 +480,4 @@ def highest_density_interval(
         log2_num_qmc_points=log2_num_qmc_points, mode=mode
     )
     left = right - res.fun
-    return left, right
+    return _round_interval(left, right)

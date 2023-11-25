@@ -5,9 +5,9 @@ from opaque.results import OpaqueResultsManager
 from opaque.stats import highest_density_interval
 
 
-run_name = "validate_run1"
+run_name = "run1"
 
-results = list(OpaqueResultsManager.iterrows("validate_run1"))
+results = list(OpaqueResultsManager.iterrows(run_name))
 
 
 for key, data in results:
@@ -78,6 +78,8 @@ for key, data in results:
     data["coverage_95"] = coverage_95
     data["coverage_99"] = coverage_99
 
+    print(coverage_90, coverage_95, coverage_99)
+
     test_df["HDI_90_pos"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -91,7 +93,6 @@ for key, data in results:
         ),
         axis=1,
     )
-
     test_df["HDI_95_pos"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -105,7 +106,6 @@ for key, data in results:
         ),
         axis=1,
     )
-
     test_df["HDI_99_pos"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -119,7 +119,6 @@ for key, data in results:
         ),
         axis=1,
     )
-
     test_df["precision"] = test_df.apply(
         lambda row: row.K_outlier / (row.K_outlier + row.N_inlier - row.K_inlier),
         axis=1,
@@ -147,6 +146,7 @@ for key, data in results:
     data["coverage_95_pos"] = coverage_95_pos
     data["coverage_99_pos"] = coverage_99_pos
 
+    print(coverage_90_pos, coverage_95_pos, coverage_99_pos)
     test_df["HDI_90_neg"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -196,7 +196,6 @@ for key, data in results:
         axis=1,
     )
 
-
     test_df["HDI_90_neg_covers"] = test_df.apply(
         lambda row: row.HDI_90_neg[0] <= row.FOR <= row.HDI_90_neg[1],
         axis=1,
@@ -214,10 +213,12 @@ for key, data in results:
     coverage_95_neg = test_df.HDI_95_neg_covers.sum() / len(test_df)
     coverage_99_neg = test_df.HDI_99_neg_covers.sum() / len(test_df)
 
+    print(coverage_90_neg, coverage_95_neg, coverage_99_neg)
+
     data["coverage_90_neg"] = coverage_90_neg
     data["coverage_95_neg"] = coverage_95_neg
     data["coverage_99_neg"] = coverage_99_neg
 
 
-with open("validation_results.pkl", "wb") as f:
+with open("validation_results3.pkl", "wb") as f:
     pickle.dump(results, f)

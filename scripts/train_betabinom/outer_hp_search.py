@@ -22,7 +22,6 @@ args = parser.parse_args()
 here = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
 
-# A placeholder
 pymc_seed = 13893319457075495434352617086675957051
 run_name = args.run_name
 
