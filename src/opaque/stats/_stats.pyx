@@ -65,14 +65,19 @@ cdef api double log_betainc(double p, double q, double x) noexcept nogil:
         return -INFINITY
     if x >= 1:
         return 0.0
-    output = log(betainc(p, q, x))
-    if not (isnan(output) or output == 0 or isinf(output)):
-        return output
     if x <= p/(p + q):
+        if (p <= 20 and q <= 20):
+            output = log(betainc(p, q, x))
+            if not (isnan(output) or output == 0 or isinf(output)):
+                return output
         output = log(K(p, q, x, eps))
         output += xlog1py(q, -x) + xlogy(p, x) - log(p)
         output -= betaln(p, q)
     else:
+        if (p <= 20 and q <= 20):
+            output = log1p(-betainc(q, p, 1 - x))
+            if not (isnan(output) or output == 0 or isinf(output)):
+                return output
         output = log_diff(0, log_betainc(q, p, 1-x))
     return output
 
