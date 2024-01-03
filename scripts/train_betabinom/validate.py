@@ -46,7 +46,7 @@ run_name = args.run_name
 seed = 29574310898661272202790385091240407850
 rng = np.random.default_rng(seed)
 
-best_hps = pd.read_csv("best_hps_inner.csv", sep=",")
+best_hps = pd.read_csv("best_hps_run1.csv", sep=",")
 df = pd.read_csv(data_path, sep=',')
 
 # Generate log num training texts features, (smooth with +1 to avoid log 0).
