@@ -23,7 +23,8 @@ logger = logging.getLogger(__file__)
 
 def _round_interval(left, right, digits=6):
     scale = 10**digits
-    return (np.floor(left * scale) / scale, np.ceil(right * scale) / scale)
+    left, right = np.floor(left * scale) / scale, np.ceil(right * scale) / scale
+    return np.clip(left, 0.0, 1.0), np.clip(right, 0.0, 1.0)
 
 
 def true_positives(
