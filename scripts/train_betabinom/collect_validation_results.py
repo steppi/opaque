@@ -1,17 +1,22 @@
 import argparse
+import dask.dataframe as dd
+import multiprocessing
 import pickle
+
 
 from opaque.results import OpaqueResultsManager
 from opaque.stats import highest_density_interval
 
 
-run_name = "run1"
+run_name = "validation_run1"
 
 results = list(OpaqueResultsManager.iterrows(run_name))
 
+cpu_count = multiprocessing.cpu_count()
 
 for key, data in results:
-    test_df = data["test_df"]
+    len_test_df = len(data["test_df"])
+    test_df = dd.from_pandas(data["test_df"], npartitions=cpu_count)
 
     test_df["HDI_90"] = test_df.apply(
         lambda row: highest_density_interval(
@@ -24,7 +29,8 @@ for key, data in results:
             alpha=0.1,
         ),
         axis=1,
-    )
+        meta=("HDI_90", "object"),
+    ).compute()
 
     test_df["HDI_95"] = test_df.apply(
         lambda row: highest_density_interval(
@@ -37,7 +43,8 @@ for key, data in results:
             alpha=0.05,
         ),
         axis=1,
-    )
+        meta=("HDI_95", "object"),
+    ).compute()
 
     test_df["HDI_99"] = test_df.apply(
         lambda row: highest_density_interval(
@@ -50,29 +57,34 @@ for key, data in results:
             alpha=0.01,
         ),
         axis=1,
-    )
+        meta=("HDI_99", "object"),
+    ).compute()
 
     test_df["prevalence"] = test_df.apply(
         lambda row: row.N_outlier / (row.N_outlier + row.N_inlier),
         axis=1,
-    )
+        meta=("prevalence", "f8"),
+    ).compute()
 
     test_df["HDI_90_covers"] = test_df.apply(
         lambda row: row.HDI_90[0] <= row.prevalence <= row.HDI_90[1],
         axis=1,
-    )
+        meta=("HDI_90_covers", "f8"),
+    ).compute()
     test_df["HDI_95_covers"] = test_df.apply(
         lambda row: row.HDI_95[0] <= row.prevalence <= row.HDI_95[1],
         axis=1,
-    )
+        meta=("HDI_95_covers", "f8"),
+    ).compute()
     test_df["HDI_99_covers"] = test_df.apply(
         lambda row: row.HDI_99[0] <= row.prevalence <= row.HDI_99[1],
         axis=1,
-    )
+        meta=("HDI_99_covers", "f8"),
+    ).compute()
 
-    coverage_90 = test_df.HDI_90_covers.sum() / len(test_df)
-    coverage_95 = test_df.HDI_95_covers.sum() / len(test_df)
-    coverage_99 = test_df.HDI_99_covers.sum() / len(test_df)
+    coverage_90 = test_df.HDI_90_covers.sum().compute() / len_test_df
+    coverage_95 = test_df.HDI_95_covers.sum().compute() / len_test_df
+    coverage_99 = test_df.HDI_99_covers.sum().compute() / len_test_df
 
     data["coverage_90"] = coverage_90
     data["coverage_95"] = coverage_95
@@ -92,7 +104,8 @@ for key, data in results:
             mode="positive",
         ),
         axis=1,
-    )
+        meta=("HDI_90_pos", "object"),
+    ).compute()
     test_df["HDI_95_pos"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -105,7 +118,8 @@ for key, data in results:
             mode="positive",
         ),
         axis=1,
-    )
+        meta=("HDI_95_pos", "object"),
+    ).compute()
     test_df["HDI_99_pos"] = test_df.apply(
         lambda row: highest_density_interval(
             row.N_inlier + row.N_outlier,
@@ -118,29 +132,34 @@ for key, data in results:
             mode="positive",
         ),
         axis=1,
-    )
+        meta=("HDI_99_pos", "object"),
+    ).compute()
     test_df["precision"] = test_df.apply(
         lambda row: row.K_outlier / (row.K_outlier + row.N_inlier - row.K_inlier),
         axis=1,
-    )
+        meta=("precision", "f8"),
+    ).compute()
 
 
     test_df["HDI_90_pos_covers"] = test_df.apply(
         lambda row: row.HDI_90_pos[0] <= row.precision <= row.HDI_90_pos[1],
         axis=1,
-    )
+        meta=("HDI_90_pos_covers", "f8"),
+    ).compute()
     test_df["HDI_95_pos_covers"] = test_df.apply(
         lambda row: row.HDI_95_pos[0] <= row.precision <= row.HDI_95_pos[1],
         axis=1,
-    )
+        meta=("HDI_95_pos_covers", "f8"),
+    ).compute()
     test_df["HDI_99_pos_covers"] = test_df.apply(
         lambda row: row.HDI_99_pos[0] <= row.precision <= row.HDI_99_pos[1],
         axis=1,
-    )
+        meta=("HDI_99_pos_covers", "f8"),
+    ).compute()
 
-    coverage_90_pos = test_df.HDI_90_pos_covers.sum() / len(test_df)
-    coverage_95_pos = test_df.HDI_95_pos_covers.sum() / len(test_df)
-    coverage_99_pos = test_df.HDI_99_pos_covers.sum() / len(test_df)
+    coverage_90_pos = test_df.HDI_90_pos_covers.sum().compute() / len_test_df
+    coverage_95_pos = test_df.HDI_95_pos_covers.sum().compute() / len_test_df
+    coverage_99_pos = test_df.HDI_99_pos_covers.sum().compute() / len_test_df
 
     data["coverage_90_pos"] = coverage_90_pos
     data["coverage_95_pos"] = coverage_95_pos
@@ -159,7 +178,8 @@ for key, data in results:
             mode="negative",
         ),
         axis=1,
-    )
+        meta=("HDI_90_neg", "object"),
+    ).compute()
 
     test_df["HDI_95_neg"] = test_df.apply(
         lambda row: highest_density_interval(
@@ -173,7 +193,8 @@ for key, data in results:
             mode="negative",
         ),
         axis=1,
-    )
+        meta=("HDI_95_neg", "object"),
+    ).compute()
 
     test_df["HDI_99_neg"] = test_df.apply(
         lambda row: highest_density_interval(
@@ -187,31 +208,36 @@ for key, data in results:
             mode="negative",
         ),
         axis=1,
-    )
+        meta=("HDI_99_neg", "object"),
+    ).compute()
 
     test_df["FOR"] = test_df.apply(
         lambda row: 0 if row.N_outlier - row.K_outlier == 0
         else (row.N_outlier - row.K_outlier)
         / (row.K_inlier + row.N_outlier - row.K_outlier),
         axis=1,
-    )
+        meta=("FOR", "f8"),
+    ).compute()
 
     test_df["HDI_90_neg_covers"] = test_df.apply(
         lambda row: row.HDI_90_neg[0] <= row.FOR <= row.HDI_90_neg[1],
         axis=1,
-    )
+        meta=("HDI_90_neg_covers", "f8"),
+    ).compute()
     test_df["HDI_95_neg_covers"] = test_df.apply(
         lambda row: row.HDI_95_neg[0] <= row.FOR <= row.HDI_95_neg[1],
         axis=1,
-    )
+        meta=("HDI_95_neg_covers", "f8"),
+    ).compute()
     test_df["HDI_99_neg_covers"] = test_df.apply(
         lambda row: row.HDI_99_neg[0] <= row.FOR <= row.HDI_99_neg[1],
         axis=1,
-    )
+        meta=("HDI_99_neg_covers", "f8"),
+    ).compute()
 
-    coverage_90_neg = test_df.HDI_90_neg_covers.sum() / len(test_df)
-    coverage_95_neg = test_df.HDI_95_neg_covers.sum() / len(test_df)
-    coverage_99_neg = test_df.HDI_99_neg_covers.sum() / len(test_df)
+    coverage_90_neg = test_df.HDI_90_neg_covers.sum().compute() / len_test_df
+    coverage_95_neg = test_df.HDI_95_neg_covers.sum().compute() / len_test_df
+    coverage_99_neg = test_df.HDI_99_neg_covers.sum().compute() / len_test_df
 
     print(coverage_90_neg, coverage_95_neg, coverage_99_neg)
 
@@ -219,6 +245,8 @@ for key, data in results:
     data["coverage_95_neg"] = coverage_95_neg
     data["coverage_99_neg"] = coverage_99_neg
 
+    data["test_df"] = pd.DataFrame(test_df).compute()
 
-with open("validation_results3.pkl", "wb") as f:
+
+with open("validation_results_run1.pkl", "wb") as f:
     pickle.dump(results, f)
