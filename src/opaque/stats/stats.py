@@ -21,42 +21,42 @@ from ._stats import prevalence_cdf_negative_fixed_ufunc as prevalence_cdf_negati
 logger = logging.getLogger(__file__)
 
 
-def _round_interval(left, right, digits=6):
+def _round_interval(left, right, *, digits=6):
     scale = 10**digits
     left, right = np.floor(left * scale) / scale, np.ceil(right * scale) / scale
     return np.clip(left, 0.0, 1.0), np.clip(right, 0.0, 1.0)
 
 
 def true_positives(
-        y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
     return np.sum((y_true == pos_label) & (y_pred == pos_label))
 
 
 def true_negatives(
-        y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
     return np.sum((y_true != pos_label) & (y_pred != pos_label))
 
 
 def false_positives(
-        y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
     return np.sum((y_true != pos_label) & (y_pred == pos_label))
 
 
 def false_negatives(
-        y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     y_true, y_pred = column_or_1d(y_true), column_or_1d(y_pred)
     return np.sum((y_true == pos_label) & (y_pred != pos_label))
 
 
 def sensitivity_score(
-    y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     tp = true_positives(y_true, y_pred, pos_label)
     fn = false_negatives(y_true, y_pred, pos_label)
@@ -69,7 +69,7 @@ def sensitivity_score(
 
 
 def specificity_score(
-    y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     tn = true_negatives(y_true, y_pred, pos_label)
     fp = false_positives(y_true, y_pred, pos_label)
@@ -82,7 +82,7 @@ def specificity_score(
 
 
 def youdens_j_score(
-        y_true: ArrayLike, y_pred: ArrayLike, pos_label: Any = 1
+        y_true: ArrayLike, y_pred: ArrayLike, *, pos_label: Any = 1
 ) -> float:
     sens = sensitivity_score(y_true, y_pred, pos_label)
     spec = specificity_score(y_true, y_pred, pos_label)
@@ -111,6 +111,7 @@ def simple_prevalence_interval(
         t: int,
         sens: float,
         spec: float,
+        *,
         alpha: float = 0.1,
         method: str = "beta",
 ) -> tuple[float,float]:
@@ -137,6 +138,7 @@ def prevalence_cdf(
         sens_b: float,
         spec_a: float,
         spec_b: float,
+        *,
         log2_num_qmc_points: int = 10,
         mode: str = "unconditional",
 ) -> NDArray:
@@ -213,6 +215,7 @@ def inverse_prevalence_cdf(
         sens_b: float,
         spec_a: float,
         spec_b: float,
+        *,
         log2_num_qmc_points: int = 10,
         mode: str = "unconditional",
 ) -> float:
@@ -291,6 +294,7 @@ def equal_tailed_interval(
         sens_b: float,
         spec_a: float,
         spec_b: float,
+        *,
         alpha: float = 0.1,
         log2_num_qmc_points: int = 10,
         mode: str = "unconditional",
@@ -376,6 +380,7 @@ def highest_density_interval(
         sens_b: float,
         spec_a: float,
         spec_b: float,
+        *,
         alpha: float = 0.1,
         log2_num_qmc_points: int = 10,
         mode: str = "unconditional",

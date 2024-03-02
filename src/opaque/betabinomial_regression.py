@@ -14,6 +14,7 @@ from opaque.utils import load_trace
 class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
     def __init__(
             self,
+            *,
             coefficient_prior_type="normal",
             coefficient_prior_scale=100.0,
             intercept_prior_scale=1000.0,
@@ -39,7 +40,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             sampler_args["progressbar"] = False
         self.sampler_args = sampler_args
 
-    def _setup_model(self, X, N, K, mean_use_cols=None, disp_use_cols=None):
+    def _setup_model(self, X, N, K, *, mean_use_cols=None, disp_use_cols=None):
         with pm.Model() as model:
             intercept_mean = pm.Normal(
                 "intercept_mean",
@@ -116,6 +117,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             self,
             X,
             y,
+            *,
             mean_use_cols=None,
             disp_use_cols=None,
     ):
@@ -207,7 +209,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
         }
 
     @classmethod
-    def load(cls, model_info, random_state=None):
+    def load(cls, model_info, *, random_state=None):
         params = model_info['params']
         params["random_state"] = random_state
         sampler_args = model_info['sampler_args']
@@ -247,6 +249,7 @@ class DiagnosticTestPriorModel:
             self,
             sens_pipeline,
             spec_pipeline,
+            *,
             validation=None,
     ):
         # Some basic validation. Each pipeline should have only two steps,
@@ -362,6 +365,7 @@ class DiagnosticTestPriorModel:
     def load(
             cls,
             model_info,
+            *,
             spec_model_random_state=None,
             sens_model_random_state=None,
     ):

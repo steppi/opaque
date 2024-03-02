@@ -30,6 +30,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
 
     def __init__(
             self,
+            *,
             path=BACKGROUND_DICTIONARY_PATH,
             no_above=0.5,
             no_below=5,

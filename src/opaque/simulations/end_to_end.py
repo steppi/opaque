@@ -15,6 +15,7 @@ class EndtoEndSimulator:
             sens_coefs_disp,
             spec_coefs_mean,
             spec_coefs_disp,
+            *,
             sens_noise_mean=0.0,
             sens_noise_disp=0.0,
             spec_noise_mean=0.0,
@@ -132,7 +133,7 @@ class EndtoEndSimulator:
         )
         return data
 
-    def run(self, size_train=1000, size_test=200):
+    def run(self, *, size_train=1000, size_test=200):
         data_train = self.generate_data(size=size_train)
         data_test = self.generate_data(size=size_test)
         X_train = data_train.iloc[:, : self.num_covariates].values

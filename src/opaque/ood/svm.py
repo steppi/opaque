@@ -15,6 +15,7 @@ from opaque.utils import load_array, serialize_array
 class LinearOneClassSVM(BaseEstimator, OutlierMixin):
     def __init__(
             self,
+            *,
             nu=0.5,
             tol=1e-3,
             solver='libsvm',

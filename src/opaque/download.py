@@ -43,7 +43,7 @@ def download_adeft_betabinom_dataset():
     )
 
 
-def download_opaque_object(*args, outpath):
+def download_opaque_object(*args, *, outpath):
     logger.info(f"Downloading {'/'.join(args)}")
     return _anonymous_s3_download(loc.S3_BUCKET, _get_s3_key(*args), outpath)
 

@@ -43,7 +43,7 @@ class NestedKFold:
 
 
 class SubsetSampler:
-    def __init__(self, iterable, random_state=None):
+    def __init__(self, iterable, *, random_state=None):
         self.arr = list(iterable)
         self.current_index = 0
         if isinstance(random_state, int):

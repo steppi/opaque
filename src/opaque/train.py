@@ -19,6 +19,7 @@ def train_anomaly_detector(
         train_texts,
         nu_vals,
         max_features_vals,
+        *,
         n_folds=5,
         negative_texts=None,
         no_above=0.05,
