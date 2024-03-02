@@ -1,4 +1,3 @@
-# distutils: language=c++
 # cython: cdivision=True
 # cython: cpow=True
 
@@ -10,11 +9,13 @@ from numpy.math cimport INFINITY, NAN
 from scipy.special.cython_special cimport betainc, betaln, xlog1py, xlogy
 
 
+np.import_array()
+np.import_ufunc()
+
 cdef extern from "stdbool.h":
     ctypedef bint bool
 
 
-@cython.cdivision(True)
 cdef inline double coefficient(int n, double p, double q, double x) noexcept nogil:
     """Return nth coefficient of required continued fraction expansion.
 
@@ -55,7 +56,7 @@ cdef inline double K(double p, double q, double x, double tol) noexcept nogil:
     return 1/C
 
 
-cdef api double log_betainc(double p, double q, double x) noexcept nogil:
+cdef inline double log_betainc(double p, double q, double x) noexcept nogil:
     """Returns log of incomplete beta function."""
     cdef double output
     cdef double eps = 2.220446049250313e-16
@@ -126,7 +127,7 @@ cdef inline double log_prevalence_cdf_fixed(
     return num - den
 
 
-cdef api double prevalence_cdf_fixed(
+cdef inline double prevalence_cdf_fixed(
         double theta, int n, int t, double sensitivity, double specificity
 ) noexcept nogil:
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
@@ -145,8 +146,7 @@ cdef api double prevalence_cdf_fixed(
     )
 
 
-@cython.cdivision(True)
-cdef api double prevalence_cdf_positive_fixed(
+cdef inline double prevalence_cdf_positive_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) noexcept nogil:
     cdef:
@@ -160,8 +160,7 @@ cdef api double prevalence_cdf_positive_fixed(
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
-@cython.cdivision(True)
-cdef api double prevalence_cdf_negative_fixed(
+cdef inline double prevalence_cdf_negative_fixed(
         double psi, int n, int t, double sensitivity, double specificity
 ) noexcept nogil:
     cdef:
@@ -175,3 +174,29 @@ cdef api double prevalence_cdf_negative_fixed(
     if isnan(theta):
         theta = 1.0
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+
+
+@cython.ufunc
+cdef double log_betainc_ufunc(double p, double q, double x) nogil:
+    return log_betainc(p, q, x)
+
+
+@cython.ufunc
+cdef double prevalence_cdf_fixed_ufunc(
+        double theta, int n, int t, double sensitivity, double specificity
+) nogil:
+    return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+
+
+@cython.ufunc
+cdef double prevalence_cdf_positive_fixed_ufunc(
+        double psi, int n, int t, double sensitivity, double specificity
+) nogil:
+    return prevalence_cdf_positive_fixed(psi, n, t, sensitivity, specificity)
+
+
+@cython.ufunc
+cdef double prevalence_cdf_negative_fixed_ufunc(
+        double psi, int n, int t, double sensitivity, double specificity
+) nogil:
+    return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
