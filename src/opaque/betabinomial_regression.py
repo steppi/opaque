@@ -141,6 +141,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             self.trace_ = trace
             self.model_ = model
         self.ncols_ = X.shape[1]
+        return self
 
     def get_posterior_predictions(self, X, N, **pymc_args):
         check_is_fitted(self)
