@@ -20,7 +20,7 @@ dependencies = [
              "gensim",
              "scipy>=1.12",
              "pymc==5.10.4",
-             "scikit-learn==1.3.2",
+             "scikit-learn",
              "statsmodels"
 ]
 readme = "README.md"
