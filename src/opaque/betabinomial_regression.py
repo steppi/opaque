@@ -350,6 +350,8 @@ class DiagnosticTestPriorModel:
         spec_transformer = self.spec_pipeline.steps[0][1]
         sens_model_info = sens_estimator.get_model_info()
         spec_model_info = spec_estimator.get_model_info()
+        # Using pickle here is just a temporary measure.
+        # TODO: Transformers should be serialized properly.
         info = {
                     'sens_model_info': sens_model_info,
                     'sens_transformer': pickle.dumps(
