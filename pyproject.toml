@@ -1,3 +1,48 @@
 [build-system]
-requires = ["setuptools", "wheel", "Cython", "scipy"]
+requires = ["setuptools", "wheel", "Cython>=3.0.4", "scipy>=1.12"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "opaque"
+version = "0.0.0"
+license = {file = "LICENSE"}
+description = "Outlier prevalence analysis for quantification of unknown entities"
+maintainers = [
+            {name = "opaque developers", email = "albert.steppi@gmail.com"}
+]
+
+requires-python = ">=3.9"
+dependencies = [
+             "appdirs",
+             "boto3",
+             "botocore",
+             "cloudpickle",
+             "gensim",
+             "pymc",
+             "scipy>=1.12",
+             "scikit-learn",
+             "statsmodels"
+]
+readme = "README.md"
+classifiers = [
+            "Development Status :: 4 - Beta",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+test = [
+     "mpmath",
+     "pandas",
+     "pytest",
+     "pytest-cov"
+]
+
+scripts = [
+        "click",
+        "networkx",
+        "pandas"
+]
