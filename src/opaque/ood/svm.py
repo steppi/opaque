@@ -6,9 +6,6 @@ from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.utils.validation import check_is_fitted
 
 
-from liblinear.liblinearutil import parameter, problem, train
-
-
 from opaque.utils import load_array, serialize_array
 
 
@@ -18,23 +15,11 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
             *,
             nu=0.5,
             tol=1e-3,
-            solver='libsvm',
             verbose=False,
     ):
         self.nu = nu
         self.tol = tol
         self.verbose = False
-        self.solver = solver
-
-    def _fit_liblinear(self, X):
-        params = f'-s 21 -e {self.tol}'
-        if not self.verbose:
-            params += ' -q'
-        prob = problem(np.ones(X.shape[0]), X)
-        param = parameter(params)
-        model = train(prob, param)
-        W, rho = model.get_decfun()
-        return np.array([W]), rho
 
     def _fit_libsvm(self, X):
         model = OneClassSVM(
@@ -44,11 +29,9 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
         return model.coef_, model.intercept_
 
     def fit(self, X, y=None):
-        if self.solver == 'libsvm':
-            coef, intercept = self._fit_libsvm(X)
-        elif self.solver == 'liblinear':
-            coef, intercept = self._fit_liblinear(X)
+        coef, intercept = self._fit_libsvm(X)
         self.coef_, self.intercept_ = coef, intercept
+        return self
 
     def decision_function(self, X):
         check_is_fitted(self)
