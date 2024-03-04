@@ -16,12 +16,13 @@ class PrevalenceSimulation:
     """
 
     def __init__(
-        self,
-        sensitivity,
-        specificity,
-        samples_per_trial=100,
-        num_grid_points=100,
-        seed=None,
+            self,
+            sensitivity,
+            specificity,
+            *,
+            samples_per_trial=100,
+            num_grid_points=100,
+            seed=None,
     ):
         self.num_grid_points = num_grid_points
         self.samples_per_trial = samples_per_trial
@@ -60,7 +61,7 @@ class PrevalenceSimulation:
     def sample_sens_spec(self):
         return self.sample_sens(), self.sample_spec()
 
-    def run(self, n_trials=1000, n_jobs=1):
+    def run(self, *, n_trials=1000, n_jobs=1):
         points = (
             (
                 theta,
@@ -100,7 +101,7 @@ class PrevalenceSimulation:
         self.aggregate_results_neg = aggregate_results_neg
         self.info_dict["n_trials"] = n_trials
 
-    def get_results_dict(self, num_grid_points=None):
+    def get_results_dict(self, *, num_grid_points=None):
         if num_grid_points is None:
             num_grid_points = self.info_dict["num_grid_points"]
         x = np.linspace(0, 1, num_grid_points)

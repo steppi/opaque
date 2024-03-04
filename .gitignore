@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Working csv files in scripts
+scripts/train_betabinom/*.csv

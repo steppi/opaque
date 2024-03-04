@@ -7,7 +7,9 @@ import pytest
 import numpy as np
 
 from opaque.stats import prevalence_cdf
-from opaque.locations import TEST_DATA_LOCATION
+
+here = os.path.dirname(os.path.realpath(__file__))
+TEST_DATA_LOCATION = os.path.join(here, 'data')
 
 
 def get_simulation_results(test_data_filename):
@@ -32,19 +34,6 @@ def simulation2():
 
 
 class TestPrevalenceCdf(object):
-    def calculate_cdf(
-            self, n, t, sens_a, sens_b, spec_a, spec_b, num, mode
-    ):
-        return np.fromiter(
-            (
-                prevalence_cdf(
-                    theta, n, t, sens_a, sens_b, spec_a, spec_b, mode=mode
-                )
-                for theta in np.linspace(0, 1, num)
-            ),
-            dtype=float,
-        )
-
     def get_mae_for_testcase(
             self,
             n,
@@ -58,8 +47,9 @@ class TestPrevalenceCdf(object):
             mode,
     ):
         simulated_cdf = np.array(results[f"{n}:{t}"])
-        calculated_cdf = self.calculate_cdf(
-            n, t, sens_a, sens_b, spec_a, spec_b, num_grid_points, mode
+        theta = np.linspace(0, 1, num_grid_points)
+        calculated_cdf = prevalence_cdf(
+            theta, n, t, sens_a, sens_b, spec_a, spec_b, mode=mode
         )
         residuals = np.abs(simulated_cdf - calculated_cdf)
         mean_absolute_error = np.sum(residuals) / num_grid_points

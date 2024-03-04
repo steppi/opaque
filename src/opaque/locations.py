@@ -2,6 +2,8 @@
 import os
 from appdirs import user_data_dir
 
+from opaque import __version__
+
 here = os.path.dirname(os.path.realpath(__file__))
 
 OPAQUE_HOME = os.environ.get("OPAQUE_HOME")
@@ -14,7 +16,11 @@ NEGATIVE_SET_PATH = os.path.join(
     OPAQUE_HOME, "negative_set.json"
 )
 DIAGNOSTIC_TEST_PRIOR_MODEL_PATH = os.path.join(
-    OPAQUE_HOME, "prior_model.pkl",
+    OPAQUE_HOME, "prior_model.pkl"
 )
-TEST_DATA_LOCATION = os.path.join(here, "tests", "data")
-S3_BUCKET_URL = "https://adeft.s3.amazonaws.com/opaque"
+ADEFT_BETABINOM_DATASET_PATH = os.path.join(
+    OPAQUE_HOME, "adeft_betabinom_dataset.csv"
+)
+S3_BUCKET = "adeft"
+S3_KEY_PREFIX = f"opaque/{__version__}"
+RESULTS_DB_PATH = os.path.join(OPAQUE_HOME, "opaque_results.db")
