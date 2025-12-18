@@ -57,10 +57,10 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             X_disp = X[:] if disp_use_cols is None else X[:, disp_use_cols]
             ncols_mean = X_mean.shape[1]
             ncols_disp = X_disp.shape[1]
-            X_mean_obs = pm.MutableData("X_mean_obs", X_mean)
-            X_disp_obs = pm.MutableData("X_disp_obs", X_disp)
-            N = pm.MutableData("N", N)
-            K_obs = pm.MutableData("K_obs", K)
+            X_mean_obs = pm.Data("X_mean_obs", X_mean)
+            X_disp_obs = pm.Data("X_disp_obs", X_disp)
+            N = pm.Data("N", N)
+            K_obs = pm.Data("K_obs", K)
             if self.coefficient_prior_type == "normal":
                 coef_mean = pm.Normal(
                     "coef_mean",
@@ -163,7 +163,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
                     "X_mean_obs": X_mean,
                     "X_disp_obs": X_disp,
                     "N": N,
-                    "K_obs": np.empty(len(X_mean)),
+                    "K_obs": np.empty(len(X_mean), dtype=np.int32),
                 }
             )
             post_pred = pm.sample_posterior_predictive(self.trace_, **pymc_args)

@@ -19,7 +19,7 @@ dependencies = [
              "cloudpickle",
              "gensim",
              "scipy>=1.12",
-             "pymc==5.10.4",
+             "pymc",
              "scikit-learn",
              "statsmodels"
 ]
