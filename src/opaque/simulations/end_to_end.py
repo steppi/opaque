@@ -81,8 +81,8 @@ class EndtoEndSimulator:
         spec_prior = beta(spec_mu * spec_nu, (1 - spec_mu) * spec_nu)
         spec_prior.random_state = self.random_state
         spec = spec_prior.rvs()
-        sens.shape = sens_mu.shape = sens_nu.shape = (size, 1)
-        spec.shape = spec_mu.shape = spec_nu.shape = (size, 1)
+        # sens.shape = sens_mu.shape = sens_nu.shape = (size, 1)
+        # spec.shape = spec_mu.shape = spec_nu.shape = (size, 1)
         N_dist = powerlaw(a=self.n_shape, loc=self.n_loc, scale=self.n_scale)
         N_dist.random_state = self.random_state
         N_inlier = np.floor(N_dist.rvs(size=sens.shape)).astype(int)
@@ -90,48 +90,30 @@ class EndtoEndSimulator:
         K_inlier = self.random_state.binomial(N_inlier, p=spec)
         K_outlier = self.random_state.binomial(N_outlier, p=sens)
         theta = N_outlier / (N_inlier + N_outlier)
-        data = np.hstack(
-            [
-                X[:, 1:],
-                sens,
-                spec,
-                N_inlier,
-                K_inlier,
-                N_outlier,
-                K_outlier,
-                theta,
-                sens_mu,
-                sens_nu,
-                spec_mu,
-                spec_nu,
-                sens_mu * sens_nu,
-                (1 - sens_mu) * sens_nu,
-                spec_mu * spec_nu,
-                (1 - spec_mu) * spec_nu,
-            ]
+        covariates_df = pd.DataFrame(
+            X[:, 1:], columns=[f"X{i}" for i in range(self.num_covariates)]
         )
-        data = pd.DataFrame(
-            data,
-            columns=[f"X{i}" for i in range(self.num_covariates)]
-            + [
-                "sens",
-                "spec",
-                "N_inlier",
-                "K_inlier",
-                "N_outlier",
-                "K_outlier",
-                "theta",
-                "sens_mu",
-                "sens_nu",
-                "spec_mu",
-                "spec_nu",
-                "sens_a",
-                "sens_b",
-                "spec_a",
-                "spec_b",
-            ],
+        extra_df = pd.DataFrame(
+            {
+                "sens": sens,
+                "spec": spec,
+                "N_inlier": N_inlier,
+                "K_inlier": K_inlier,
+                "N_outlier": N_outlier,
+                "K_outlier": K_outlier,
+                "theta": theta,
+                "sens_mu": sens_mu,
+                "sens_nu": sens_nu,
+                "spec_mu": spec_mu,
+                "spec_nu": spec_nu,
+                "sens_a": sens_mu * sens_nu,
+                "sens_b": (1 - sens_mu) * sens_nu,
+                "spec_a": spec_mu * spec_nu,
+                "spec_b": (1 - spec_mu) * spec_nu,
+            }
         )
-        return data
+        return pd.concat([covariates_df, extra_df], axis=1)
+
 
     def run(self, *, size_train=1000, size_test=200):
         data_train = self.generate_data(size=size_train)
