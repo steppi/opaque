@@ -5,6 +5,7 @@ cimport cython
 cimport numpy as np
 
 from libc.math cimport exp, log, log1p, isinf, isnan, HUGE_VAL
+from libc.stdint cimport int64_t
 from numpy.math cimport INFINITY, NAN
 from scipy.special.cython_special cimport betainc, betaln, xlog1py, xlogy
 
@@ -16,12 +17,12 @@ cdef extern from "stdbool.h":
     ctypedef bint bool
 
 
-cdef inline double coefficient(int n, double p, double q, double x) noexcept nogil:
+cdef inline double coefficient(int64_t n, double p, double q, double x) noexcept nogil:
     """Return nth coefficient of required continued fraction expansion.
 
     Continued fraction expansion is for hyp2f1(p + q, 1, p + 1, x).
     """
-    cdef int m
+    cdef int64_t m
     m = n // 2
     if n % 2 == 0:
         return m*(q-m)/((p+2*m-1)*(p+2*m)) * x
@@ -35,7 +36,7 @@ cdef inline double K(double p, double q, double x, double tol) noexcept nogil:
     Evaluates continued fraction in top down fashion using Lentz's
     algorithm.
     """
-    cdef int n
+    cdef int64_t n
     cdef double delC, C, D, upper, lower
 
     delC = coefficient(1, p, q, x)
@@ -89,7 +90,7 @@ cdef inline double log_diff(double log_p, double log_q) noexcept nogil:
 
 
 cdef inline double log_prevalence_cdf_fixed(
-        double theta, int n, int t, double sensitivity, double specificity
+        double theta, int64_t n, int64_t t, double sensitivity, double specificity
 ) noexcept nogil:
     """Returns log of prevalence cdf for fixed sensitivity and specificity."""
     cdef bool anti_test
@@ -128,7 +129,7 @@ cdef inline double log_prevalence_cdf_fixed(
 
 
 cdef inline double prevalence_cdf_fixed(
-        double theta, int n, int t, double sensitivity, double specificity
+        double theta, int64_t n, int64_t t, double sensitivity, double specificity
 ) noexcept nogil:
     """Returns prevalence_cdf for fixed sensitivity and specificity."""
     cdef double c1, c2, result
@@ -147,7 +148,7 @@ cdef inline double prevalence_cdf_fixed(
 
 
 cdef inline double prevalence_cdf_positive_fixed(
-        double psi, int n, int t, double sensitivity, double specificity
+        double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) noexcept nogil:
     cdef:
         double c1, c2, theta
@@ -161,7 +162,7 @@ cdef inline double prevalence_cdf_positive_fixed(
 
 
 cdef inline double prevalence_cdf_negative_fixed(
-        double psi, int n, int t, double sensitivity, double specificity
+        double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) noexcept nogil:
     cdef:
         double c1, c2, theta
@@ -183,20 +184,20 @@ cdef double log_betainc_ufunc(double p, double q, double x) nogil:
 
 @cython.ufunc
 cdef double prevalence_cdf_fixed_ufunc(
-        double theta, int n, int t, double sensitivity, double specificity
+        double theta, int64_t n, int64_t t, double sensitivity, double specificity
 ) nogil:
     return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
 
 
 @cython.ufunc
 cdef double prevalence_cdf_positive_fixed_ufunc(
-        double psi, int n, int t, double sensitivity, double specificity
+        double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) nogil:
     return prevalence_cdf_positive_fixed(psi, n, t, sensitivity, specificity)
 
 
 @cython.ufunc
 cdef double prevalence_cdf_negative_fixed_ufunc(
-        double psi, int n, int t, double sensitivity, double specificity
+        double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) nogil:
     return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
