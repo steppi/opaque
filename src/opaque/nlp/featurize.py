@@ -164,7 +164,7 @@ class BaselineTfidfVectorizer(BaseEstimator, TransformerMixin):
     @classmethod
     def load_model_info(cls, model_info, path=BACKGROUND_DICTIONARY_PATH):
         tokens = model_info["tokens"]
-        tfidf = BaselineTfidfVectorizer(path)
+        tfidf = BaselineTfidfVectorizer(path=path)
         dictionary = Dictionary.load(path)
         dictionary.filter_tokens(
             good_ids=(

@@ -36,7 +36,6 @@ def train_anomaly_detector(
     for nu, max_features in product(nu_vals, max_features_vals):
         ad_model = GroundingAnomalyDetector(
             BaselineTfidfVectorizer(
-                BACKGROUND_DICTIONARY_PATH,
                 max_features_per_class=max_features,
                 no_above=no_above,
                 no_below=no_below,
@@ -73,7 +72,6 @@ def train_anomaly_detector(
     best_nu, best_max_features = best_params
     ad_model = GroundingAnomalyDetector(
         BaselineTfidfVectorizer(
-            BACKGROUND_DICTIONARY_PATH,
             max_features_per_class=best_max_features,
             no_above=no_above,
             no_below=no_below,
