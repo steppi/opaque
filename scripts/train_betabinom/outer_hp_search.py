@@ -3,6 +3,10 @@ import itertools as it
 import numpy as np
 import os
 import pandas as pd
+import numpyro
+
+os.environ["JAX_PLATFORM_NAME"] = "cpu"
+numpyro.set_host_device_count(16)
 
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.preprocessing import StandardScaler
@@ -22,7 +26,7 @@ args = parser.parse_args()
 here = os.path.dirname(os.path.realpath(__file__))
 data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
 
-pymc_seed = 13893319457075495434352617086675957051
+pymc_seed = 138933194570754954
 run_name = args.run_name
 
 if run_name not in OpaqueResultsManager.show_tables():
@@ -74,6 +78,9 @@ for (
     # Calling these "inner splits" lets us seamlessly use the
     # previous hp collection script.
     key = f"{target_type}:{prior_type}:{coeff_scale}:{0}:{i}"
+    if OpaqueResultsManager.get(run_name, key) is not None:
+        print(f"Results already computed for key {key}")
+        continue
 
     df_outer_train = df.iloc[outer_train_idx, :]
     df_outer_test = df.iloc[outer_test_idx, :]
@@ -82,22 +89,22 @@ for (
         df_outer_train = df_outer_train[df_outer_train.N_inlier > 0]
         y_outer_train = df_outer_train[
             ['N_inlier', 'K_inlier']
-        ].values.astype(float)
+        ].values.astype(np.int64)
 
         df_outer_test = df_outer_test[df_outer_test.N_inlier > 0]
         y_outer_test = df_outer_test[
             ['N_inlier', 'K_inlier']
-        ].values.astype(float)
+        ].values.astype(np.int64)
     else:
         df_outer_train = df_outer_train[df_outer_train.N_outlier > 0]
         y_outer_train = df_outer_train[
             ['N_outlier', 'K_outlier']
-        ].values.astype(float)
+        ].values.astype(np.int64)
 
         df_outer_test = df_outer_test[df_outer_test.N_outlier > 0]
         y_outer_test = df_outer_test[
             ['N_outlier', 'K_outlier']
-        ].values.astype(float)
+        ].values.astype(np.int64)
 
     X_outer_train = get_feature_array(df_outer_train)
     X_outer_test = get_feature_array(df_outer_test)
@@ -111,6 +118,7 @@ for (
                     coefficient_prior_type=prior_type,
                     coefficient_prior_scale=coeff_scale,
                     random_seed=pymc_seed,
+                    nuts_sampler="numpyro",
                 ),
             ),
         ]

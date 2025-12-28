@@ -3,6 +3,10 @@ import itertools as it
 import numpy as np
 import os
 import pandas as pd
+import numpyro
+
+os.environ["JAX_PLATFORM_NAME"] = "cpu"
+numpyro.set_host_device_count(16)
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedGroupKFold
@@ -74,12 +78,12 @@ def main(
             df_outer_train = df_outer_train[df_outer_train.N_inlier > 0]
             y_outer_train = df_outer_train[
                 ['N_inlier', 'K_inlier']
-            ].values.astype(float)
+            ].values.astype(np.int64)
 
             df_outer_test = df_outer_test[df_outer_test.N_inlier > 0]
             y_outer_test = df_outer_test[
                 ['N_inlier', 'K_inlier']
-            ].values.astype(float)
+            ].values.astype(np.int64)
             # For spec, Stratify loosely by number of inlier samples N_inlier.
             # max(3, ceil(log10(N_inlier + 1)))
             strat_label = df_outer_train.spec_strat_label
@@ -88,12 +92,12 @@ def main(
             df_outer_train = df_outer_train[df_outer_train.N_outlier > 0]
             y_outer_train = df_outer_train[
                 ['N_outlier', 'K_outlier']
-            ].values.astype(float)
+            ].values.astype(np.int64)
 
             df_outer_test = df_outer_test[df_outer_test.N_outlier > 0]
             y_outer_test = df_outer_test[
                 ['N_outlier', 'K_outlier']
-            ].values.astype(float)
+            ].values.astype(np.int64)
             # For sens, Stratify loosely by number of inlier samples N_outlier.
             # max(3, ceil(log10(N_outlier + 1)))
             strat_label = df_outer_train.sens_strat_label
@@ -120,6 +124,7 @@ def main(
                             coefficient_prior_type=prior_type,
                             coefficient_prior_scale=coeff_scale,
                             random_seed=pymc_seed,
+                            nuts_sampler="numpyro",
                         ),
                     ),
                 ]
@@ -187,7 +192,7 @@ if __name__ == "__main__":
     # from numpy.random import SeedSequence
     #
     # SeedSequence().entropy
-    pymc_seed = 1612814232824194042486396718624000821
+    pymc_seed = 161281423282419
 
     coeff_prior_type_list = ["normal", "laplace"]
     coeff_prior_scale_list = np.exp2(np.arange(-4, 10))
