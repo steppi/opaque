@@ -36,10 +36,11 @@ import opaque.locations as loc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("dataset_path")
     parser.add_argument("--numpy-seed", type=int)
     args = parser.parse_args()
 
-    df = pd.read_csv(loc.ADEFT_BETABINOM_DATASET_PATH, sep=',')
+    df = pd.read_csv(args.dataset_path, sep=',')
 
     # We're creating a graph structure on the datapoints in such a way that
     # two points are linked if they have either the same grounding or the
