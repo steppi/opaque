@@ -2,7 +2,7 @@ import ctypes
 import logging
 import numpy as np
 import scipy.special as sc
-
+import scipy.stats as stats
 
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import minimize_scalar
@@ -104,6 +104,10 @@ def NKLD(p_true, p_pred):
         + (1 - p_true) * np.log((1 - p_true) / (1 - p_pred))
     )
     return np.mean(2 * sc.expit(KL) - 1)
+
+
+def log_score_betabinom(k_true, n_true, a_pred, b_pred):
+    return np.mean(stats.betabinom.logpmf(k_true, n_true, a_pred, b_pred))
 
 
 def simple_prevalence_interval(

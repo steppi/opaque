@@ -125,32 +125,18 @@ for (
     )
     model.fit(X_outer_train, y_outer_train)
 
-    total_samples = np.sum(y_outer_train[:, 0])
-    total_successes = np.sum(y_outer_train[:, 1])
-    # Smoothed using Bayesian estimate with uniform prior.
-    p_baseline = (total_successes + 1) / (total_samples + 2)
-
     N = y_outer_train[:, 0]
     K_true = y_outer_train[:, 1]
 
     # Predict prevalence for each case based on model.
     preds = model.predict(X_outer_train, N=N)
-    # Betabinomial regression predicts number of successes. Turn this
-    # into a prevalence estimate.
     K_pred = preds[:, 1]
-    p_pred = K_pred / N
-
-    # Need to estimate true population prevalence based on sample.
-    # Smooth using Bayesian estimate with uniform prior.
-    p_est = (K_true + 1) / (N + 2)
-
-    # Compare predicted and estimated prevalences with
-    # Normalied Kulback Leibler divergence, the most commonly used
-    # metric for quantification learning. We try to control for the
-    # bias due to varying sample sizes N by stratifying the CV splits
-    # roughly by sample size.
-    nkld_score = NKLD(p_est, p_pred)
-    baseline_nkld_score = NKLD(p_est, p_baseline)
+    shape_params, _ = model.apply_method(
+        "predict_shape_params", X_outer_train
+    )
+    alpha, beta = shape_params[:, 0], shape_params[:, 1]
+    K_pred = preds[:, 1]
+    log_score = log_score_betabinom(K_pred, N, alpha, beta)
 
     # Save results. We don't even try to aggregate here. These will
     # be processed by another script.
@@ -160,8 +146,7 @@ for (
         run_name,
         key,
         {
-            "nkld_score": nkld_score,
-            "baseline_score": baseline_nkld_score,
+            "log_score": log_score,
             "hps": {"coeff_scale": coeff_scale, "prior_type": prior_type},
             "outer_split": 0,
             "inner_split": i,
