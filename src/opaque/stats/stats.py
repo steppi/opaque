@@ -107,7 +107,8 @@ def NKLD(p_true, p_pred):
 
 
 def log_score_betabinom(k_true, n_true, a_pred, b_pred):
-    return np.mean(stats.betabinom.logpmf(k_true, n_true, a_pred, b_pred))
+    vals = stats.betabinom.logpmf(k_true, n_true, a_pred, b_pred)
+    return np.mean(np.where(vals > 0, -np.inf, vals))
 
 
 def simple_prevalence_interval(
