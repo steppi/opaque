@@ -10,7 +10,7 @@ from sklearn.model_selection import StratifiedGroupKFold
 from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.betabinomial_regression import DiagnosticTestPriorModel
 from opaque.results import OpaqueResultsManager
-from opaque.stats import NKLD
+from opaque.stats import log_score_betabinom
 from opaque.utils import AnyMethodPipeline
 
 
@@ -46,7 +46,7 @@ run_name = args.run_name
 seed = 29574310898661272202790385091240407850
 rng = np.random.default_rng(seed)
 
-best_hps = pd.read_csv("best_hps_run1.csv", sep=",")
+best_hps = pd.read_csv("best_hps_run6.csv", sep=",")
 df = pd.read_csv(data_path, sep=',')
 
 # Generate log num training texts features, (smooth with +1 to avoid log 0).
@@ -77,10 +77,10 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
 
     y_train = df_train_spec[
         ['N_inlier', 'K_inlier']
-    ].values.astype(float)
+    ].values.astype(np.int64)
     y_test= df_test_spec[
         ['N_inlier', 'K_inlier']
-    ].values.astype(float)
+    ].values.astype(np.int64)
 
     X_train = get_feature_array(df_train_spec)
     X_test = get_feature_array(df_test_spec)
@@ -104,39 +104,21 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
         ]
     )
     spec_model.fit(X_train, y_train)
-
-    total_samples = np.sum(y_train[:, 0])
-    total_successes = np.sum(y_train[:, 1])
-    # Smoothed using Bayesian estimate with uniform prior.
-    p_baseline = (total_successes + 1) / (total_samples + 2)
+    spec_model.set_params(betabinom=spec_model.named_steps["betabinom"].distill())
 
     N = y_test[:, 0]
     K_true = y_test[:, 1]
     
     # Predict prevalence for each case based on model.
     preds = spec_model.predict(X_test, N=N)
-    # Betabinomial regression predicts number of successes. Turn this
-    # into a prevalence estimate.
     K_pred = preds[:, 1]
-    p_pred = K_pred / N
-
-    # Need to estimate true population prevalence based on sample.
-    # Smooth using Bayesian estimate with uniform prior.
-    p_est = (K_true + 1) / (N + 2)
-
-    # Compare predicted and estimated prevalences with
-    # Normalied Kulback Leibler divergence, the most commonly used
-    # metric for quantification learning. We try to control for the
-    # bias due to varying sample sizes N by stratifying the CV splits
-    # roughly by sample size.
-    nkld_score = NKLD(p_est, p_pred)
-    baseline_nkld_score = NKLD(p_est, p_baseline)
-
+    shape_params, _ = spec_model.apply_method("predict_shape_params", X_test)
+    alpha, beta = shape_params[:, 0], shape_params[:, 1]
+    K_pred = preds[:, 1]
+    log_score = log_score_betabinom(K_true, N, alpha, beta)
     results_spec = {
-        "nkld_score": nkld_score,
-        "baseline_nkld_score": baseline_nkld_score,
+        "log_score": log_score,
     }
-
 
     # Fit sensitivity model
     df_train_sens = df_train[df_train.N_outlier > 0]
@@ -144,10 +126,10 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
     
     y_train = df_train_sens[
         ['N_outlier', 'K_outlier']
-    ].values.astype(float)
+    ].values.astype(np.int64)
     y_test = df_test_sens[
         ['N_outlier', 'K_outlier']
-    ].values.astype(float)
+    ].values.astype(np.int64)
 
     X_train = get_feature_array(df_train_sens)
     X_test = get_feature_array(df_test_sens)
@@ -171,36 +153,19 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
         ]
     )
     sens_model.fit(X_train, y_train)
-    total_samples = np.sum(y_train[:, 0])
-    total_successes = np.sum(y_train[:, 1])
-    # Smoothed using Bayesian estimate with uniform prior.
-    p_baseline = (total_successes + 1) / (total_samples + 2)
+    sens_model.set_params(betabinom=sens_model.named_steps["betabinom"].distill())
 
     N = y_test[:, 0]
     K_true = y_test[:, 1]
     
     # Predict prevalence for each case based on model.
     preds = sens_model.predict(X_test, N=N)
-    # Betabinomial regression predicts number of successes. Turn this
-    # into a prevalence estimate.
+    shape_params, _ = sens_model.apply_method("predict_shape_params", X_test)
+    alpha, beta = shape_params[:, 0], shape_params[:, 1]
     K_pred = preds[:, 1]
-    p_pred = K_pred / N
-
-    # Need to estimate true population prevalence based on sample.
-    # Smooth using Bayesian estimate with uniform prior.
-    p_est = (K_true + 1) / (N + 2)
-
-    # Compare predicted and estimated prevalences with
-    # Normalied Kulback Leibler divergence, the most commonly used
-    # metric for quantification learning. We try to control for the
-    # bias due to varying sample sizes N by stratifying the CV splits
-    # roughly by sample size.
-    nkld_score = NKLD(p_est, p_pred)
-    baseline_nkld_score = NKLD(p_est, p_baseline)
-
+    log_score = log_score_betabinom(K_true, N, alpha, beta)
     results_sens = {
-        "nkld_score": nkld_score,
-        "baseline_nkld_score": baseline_nkld_score,
+        "log_score": log_score,
     }
 
     diag_prior_model = DiagnosticTestPriorModel(sens_model, spec_model)

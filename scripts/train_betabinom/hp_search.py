@@ -3,10 +3,7 @@ import itertools as it
 import numpy as np
 import os
 import pandas as pd
-import numpyro
-
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
-numpyro.set_host_device_count(16)
+import logging
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedGroupKFold
@@ -15,6 +12,10 @@ from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.results import OpaqueResultsManager
 from opaque.stats import log_score_betabinom
 from opaque.utils import AnyMethodPipeline
+
+logger = logging.getLogger("pymc")
+logger.setLevel(logging.ERROR)
+
 
 
 def get_feature_array(df):
@@ -124,7 +125,6 @@ def main(
                             coefficient_prior_type=prior_type,
                             coefficient_prior_scale=coeff_scale,
                             random_seed=pymc_seed,
-                            nuts_sampler="numpyro",
                         ),
                     ),
                 ]
@@ -132,18 +132,19 @@ def main(
             model.fit(
                 X_outer_train[inner_train_idx], y_outer_train[inner_train_idx]
             )
+            model.set_params(betabinom=model.named_steps["betabinom"].distill())
 
             N = y_outer_train[inner_test_idx, 0]
             K_true = y_outer_train[inner_test_idx, 1]
 
             preds = model.predict(X_outer_train[inner_test_idx, :], N=N)
-            shape_params, _ = model.apply_method(
+            shape_params = model.apply_method(
                 "predict_shape_params", X_outer_train[inner_test_idx, :]
             )
             alpha, beta = shape_params[:, 0], shape_params[:, 1]
             K_pred = preds[:, 1]
-            log_score = log_score_betabinom(K_pred, N, alpha, beta)
-
+            log_score = log_score_betabinom(K_true, N, alpha, beta)
+            
             # Save results. We don't even try to aggregate here. These will
             # be processed by another script.
             OpaqueResultsManager.insert(

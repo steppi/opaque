@@ -3,10 +3,6 @@ import itertools as it
 import numpy as np
 import os
 import pandas as pd
-import numpyro
-
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
-numpyro.set_host_device_count(16)
 
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.preprocessing import StandardScaler
@@ -15,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.betabinomial_regression import DiagnosticTestPriorModel
 from opaque.results import OpaqueResultsManager
-from opaque.stats import NKLD
+from opaque.stats import log_score_betabinom
 from opaque.utils import AnyMethodPipeline
 
 
@@ -118,7 +114,6 @@ for (
                     coefficient_prior_type=prior_type,
                     coefficient_prior_scale=coeff_scale,
                     random_seed=pymc_seed,
-                    nuts_sampler="numpyro",
                 ),
             ),
         ]
@@ -136,7 +131,7 @@ for (
     )
     alpha, beta = shape_params[:, 0], shape_params[:, 1]
     K_pred = preds[:, 1]
-    log_score = log_score_betabinom(K_pred, N, alpha, beta)
+    log_score = log_score_betabinom(K_true, N, alpha, beta)
 
     # Save results. We don't even try to aggregate here. These will
     # be processed by another script.
