@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.special as special
 import cloudpickle as pickle
 import pymc as pm
 from typing import NamedTuple
@@ -9,6 +10,70 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from opaque.utils import AnyMethodPipeline
 from opaque.utils import dump_trace
 from opaque.utils import load_trace
+
+
+class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
+    def __init__(
+            self,
+            intercept_mean,
+            coef_mean,
+            intercept_disp,
+            coef_disp,
+            *,
+            mean_use_cols=None,
+            disp_use_cols=None,
+    ):
+        self.intercept_mean = intercept_mean
+        self.coef_mean = coef_mean
+        self.intercept_disp = intercept_disp
+        self.coef_disp = coef_disp
+        self.mean_use_cols = mean_use_cols
+        self.disp_use_cols = disp_use_cols
+
+    def fit(self, X, y):
+        # Dummy fit since distilled model is inference only
+        return self
+
+    def _predict(self, X):
+        X_mean = X if self.mean_use_cols is None else X[:, self.mean_use_cols]
+        X_disp = X if self.disp_use_cols is None else X[:, self.disp_use_cols]
+        mu = special.expit(self.intercept_mean + X_mean @ self.coef_mean)
+        nu = np.exp(self.intercept_disp + X_disp @ self.coef_disp)
+        alpha = mu * nu
+        beta = (1 - mu) * nu
+        return mu, alpha, beta
+
+    def predict_shape_params(self, X):
+        _, alpha, beta = self._predict(X)
+        return np.vstack([alpha, beta]).T
+
+    def predict(self, X, N=None):
+        mu, _, _ = self._predict(X)
+        if N is None:
+            N = np.ones(X.shape[0])
+        preds = N * mu
+        return np.vstack([N, preds]).T
+
+    def get_model_info(self):
+        return {
+            "intercept_mean": self.intercept_mean,
+            "coef_mean": self.coef_mean,
+            "intercept_disp": self.intercept_disp,
+            "coef_disp": self.coef_disp,
+            "mean_use_cols": self.mean_use_cols,
+            "disp_use_cols": self.disp_use_cols,
+        }
+
+    @classmethod
+    def load(cls, model_info):
+        return cls(
+            model_info["intercept_mean"],
+            model_info["coef_mean"],
+            model_info["intercept_disp"],
+            model_info["coef_disp"],
+            mean_use_cols=model_info["mean_use_cols"],
+            disp_use_cols=model_info["disp_use_cols"],
+        )
 
 
 class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
@@ -166,7 +231,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
                     "K_obs": np.empty(len(X_mean), dtype=np.int32),
                 }
             )
-            post_pred = pm.sample_posterior_predictive(self.trace_, **pymc_args)
+            post_pred = pm.sample_posterior_predictive(self.trace_, progressbar=False, **pymc_args)
         return post_pred
 
     def predict(self, X, N=None):
@@ -221,8 +286,8 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
 
         ncols = model_info["ncols"]
         dummy_X = np.zeros((1, ncols))
-        dummy_N = np.array([1.0])
-        dummy_K = np.array([0.0])
+        dummy_N = np.array([1])
+        dummy_K = np.array([0])
 
         instance.model_ = instance._setup_model(
             dummy_X,
@@ -232,6 +297,35 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             disp_use_cols=instance.disp_use_cols,
         )
         return instance
+
+    def distill(self):
+        check_is_fitted(self)
+        posterior = self.trace_.posterior
+
+        intercept_mean = posterior["intercept_mean"].mean(
+            dim=("chain", "draw")
+        ).values
+
+        coef_mean = posterior["coef_mean"].mean(
+            dim=("chain", "draw")
+        ).values
+
+        intercept_disp = posterior["intercept_disp"].mean(
+            dim=("chain", "draw")
+        ).values
+
+        coef_disp = posterior["coef_disp"].mean(
+            dim=("chain", "draw")
+        ).values
+
+        return DistilledBetaBinomialRegressor(
+            intercept_mean=intercept_mean,
+            coef_mean=coef_mean,
+            intercept_disp=intercept_disp,
+            coef_disp=coef_disp,
+            mean_use_cols=self.mean_use_cols,
+            disp_use_cols=self.disp_use_cols,
+        )
 
 
 class ShapeParamResults(NamedTuple):
@@ -263,10 +357,12 @@ class DiagnosticTestPriorModel:
         for pipeline in sens_pipeline, spec_pipeline:
             assert len(pipeline.steps) == 2
             transformer = pipeline.steps[0][1]
-            estimator = pipeline.steps[1][1]
+            name, estimator = pipeline.steps[1]
             check_is_fitted(transformer)
             check_is_fitted(estimator)
-            assert isinstance(estimator, BetaBinomialRegressor)
+            if isinstance(estimator, BetaBinomialRegressor):
+                pipeline.set_params(**{name: estimator.distill()})
+
         self.sens_pipeline = sens_pipeline
         self.spec_pipeline = spec_pipeline
 
@@ -280,17 +376,11 @@ class DiagnosticTestPriorModel:
         spec_estimator = self.spec_pipeline.steps[1][1]
         sens_params = sens_estimator.get_params()
         spec_params = spec_estimator.get_params()
-        sens_sampler_args = sens_estimator.sampler_args
-        spec_sampler_args = spec_estimator.sampler_args
         params = {}
         for key, value in sens_params:
             params[f"sens__{key}"] = value
         for key, value in spec_params:
             params[f"spec__{key}"] = value
-        for key, value in sens_sampler_args:
-            params[f"sens__sampler__{key}"] = value
-        for key, value in spec_sampler_args:
-            params[f"spec__sampler__{key}"] = value
         return params
 
     def predict_shape_params(
@@ -380,11 +470,11 @@ class DiagnosticTestPriorModel:
         spec_transformer = pickle.loads(
             model_info['spec_transformer'].encode('latin-1')
         )
-        sens_estimator = BetaBinomialRegressor.load(
-            sens_model_info, random_state=sens_model_random_state
+        sens_estimator = DistilledBetaBinomialRegressor.load(
+            sens_model_info,
         )
-        spec_estimator = BetaBinomialRegressor.load(
-            spec_model_info, random_state=spec_model_random_state
+        spec_estimator = DistilledBetaBinomialRegressor.load(
+            spec_model_info,
         )
         sens_pipeline = AnyMethodPipeline(
             [
