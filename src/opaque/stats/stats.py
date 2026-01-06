@@ -1,16 +1,10 @@
-import ctypes
 import logging
 import numpy as np
 import scipy.special as sc
 import scipy.stats as stats
 
 from numpy.typing import ArrayLike, NDArray
-from scipy.optimize import minimize_scalar
-from scipy.optimize import root_scalar
 from scipy.stats import qmc
-from sklearn.utils.validation import column_or_1d
-from statsmodels.stats.proportion import proportion_confint
-from typing import Any
 
 from ._stats import log_betainc_ufunc as log_betainc
 from ._stats import prevalence_cdf_fixed_ufunc as prevalence_cdf_fixed
