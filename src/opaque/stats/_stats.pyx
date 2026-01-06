@@ -4,9 +4,11 @@
 cimport cython
 cimport numpy as np
 
+from libc.float cimport DBL_EPSILON
 from libc.math cimport exp, log, log1p, isinf, isnan, HUGE_VAL
 from libc.stdint cimport int64_t
 from numpy.math cimport INFINITY, NAN
+from scipy.optimize.cython_optimize cimport brentq
 from scipy.special.cython_special cimport betainc, betaln, xlog1py, xlogy
 
 
@@ -147,6 +149,51 @@ cdef inline double prevalence_cdf_fixed(
     )
 
 
+ctypedef double (*prev_func_ptr)(double, int64_t, int64_t, double, double) noexcept nogil
+
+
+ctypedef struct inv_cdf_args:
+    int64_t n
+    int64_t t
+    double sens
+    double spec
+    double p
+    prev_func_ptr prev_func
+
+
+cdef inline double func(double theta, void* args) noexcept nogil:
+    cdef:
+        inv_cdf_args *myargs = <inv_cdf_args *> args
+        int64_t n = myargs.n
+        int64_t t = myargs.t
+        double sens = myargs.sens
+        double spec = myargs.spec
+        double p = myargs.p
+        prev_func_ptr prev_func = myargs.prev_func
+    return prev_func(theta, n, t, sens, spec) - p
+
+
+cdef inline double inverse_prevalence_cdf_fixed(
+    double p, int64_t n, int64_t t, double sensitivity, double specificity,
+    prev_func_ptr prev_func,
+) noexcept nogil:
+    """Inverse of prevalence cdf for fixed sensivivity and specificity."""
+    cdef inv_cdf_args args
+    args.n = n
+    args.t = t
+    args.sens = sensitivity
+    args.spec = specificity
+    args.p = p
+    args.prev_func = prev_func
+    if p <= 0:
+        return 0.0
+    if p >= 1:
+        return 1.0
+    return brentq(
+        func, 0.0, 1.0, <inv_cdf_args *> &args, 1e-100, DBL_EPSILON, 100, NULL
+    )
+
+
 cdef inline double prevalence_cdf_positive_fixed(
         double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) noexcept nogil:
@@ -201,3 +248,30 @@ cdef double prevalence_cdf_negative_fixed_ufunc(
         double psi, int64_t n, int64_t t, double sensitivity, double specificity
 ) nogil:
     return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
+
+
+@cython.ufunc
+cdef double inverse_prevalence_cdf_fixed_ufunc(
+    double p, int64_t n, int64_t t, double sensitivity, double specificity
+) nogil:
+    return inverse_prevalence_cdf_fixed(
+        p, n, t, sensitivity, specificity, prevalence_cdf_fixed
+    )
+
+
+@cython.ufunc
+cdef double inverse_prevalence_cdf_positive_fixed_ufunc(
+    double p, int64_t n, int64_t t, double sensitivity, double specificity
+) nogil:
+    return inverse_prevalence_cdf_fixed(
+        p, n, t, sensitivity, specificity, prevalence_cdf_positive_fixed
+    )
+
+
+@cython.ufunc
+cdef double inverse_prevalence_cdf_negative_fixed_ufunc(
+    double p, int64_t n, int64_t t, double sensitivity, double specificity
+) nogil:
+    return inverse_prevalence_cdf_fixed(
+        p, n, t, sensitivity, specificity, prevalence_cdf_negative_fixed
+    )

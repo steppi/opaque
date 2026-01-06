@@ -16,6 +16,13 @@ from ._stats import log_betainc_ufunc as log_betainc
 from ._stats import prevalence_cdf_fixed_ufunc as prevalence_cdf_fixed
 from ._stats import prevalence_cdf_positive_fixed_ufunc as prevalence_cdf_positive_fixed
 from ._stats import prevalence_cdf_negative_fixed_ufunc as prevalence_cdf_negative_fixed
+from ._stats import inverse_prevalence_cdf_fixed_ufunc as inverse_prevalence_cdf_fixed
+from ._stats import (
+    inverse_prevalence_cdf_positive_fixed_ufunc as inverse_prevalence_cdf_positive_fixed
+)
+from ._stats import (
+    inverse_prevalence_cdf_positive_fixed_ufunc as inverse_prevalence_cdf_negative_fixed
+)
 
 
 logger = logging.getLogger(__file__)
@@ -135,6 +142,68 @@ def simple_prevalence_interval(
     return c, d
 
 
+def sample_prevalence_posterior(
+        n: ArrayLike,
+        t: ArrayLike,
+        sens_a: float,
+        sens_b: float,
+        spec_a: float,
+        spec_b: float,
+        *,
+        n_samples: int = 1,
+        rng=None,
+        condition=None,
+):
+    if rng is None:
+        rng = np.random.default_rng()
+    elif isinstance(rng, (int, np.integer)):
+        rng = np.random.default_rng(rng)
+
+    if condition == "positive":
+        inv_func = inverse_prevalence_cdf_positive_fixed
+    elif condition == "negative":
+        inv_func = inverse_prevalence_cdf_negative_fixed
+    elif condition is None:
+        inv_func = inverse_prevalence_cdf_fixed
+    else:
+        raise ValueError(
+            "condition must be one of None, 'positive', or 'negative'."
+            f" received {condition}"
+        )
+
+    n, t = np.asarray(n), np.asarray(t)
+    data_shape = np.broadcast_shapes(n.shape, t.shape)
+
+    sens = rng.beta(sens_a, sens_b, size=n_samples)
+    spec = rng.beta(spec_a, spec_b, size=n_samples)
+
+    U = rng.uniform(0.0, 1.0, size=(n_samples,) + data_shape)
+
+    theta = inv_func(
+        U,
+        n[np.newaxis, ...],
+        t[np.newaxis, ...],
+        sens.reshape(sens.shape + (1,) * n.ndim),
+        spec.reshape(spec.shape + (1,) * n.ndim),
+    )
+    return theta[()]
+
+
+def _hdi_from_sample(theta_samples, *, alpha=0.1):
+    theta = np.sort(theta_samples)
+    n = len(theta)
+    interval_idx_inc = int(np.floor((1 - alpha) * n))
+    n_intervals = n - interval_idx_inc
+
+    interval_width = theta[interval_idx_inc:] - theta[:n_intervals]
+
+    min_idx = np.argmin(interval_width)
+    hdi_min = theta[min_idx]
+    hdi_max = theta[min_idx + interval_idx_inc]
+    
+    return hdi_min, hdi_max
+        
+
 def prevalence_cdf(
         theta: ArrayLike,
         n: int,
@@ -212,86 +281,6 @@ def prevalence_cdf(
     ).mean(axis=-1)
 
 
-def inverse_prevalence_cdf(
-        x: float,
-        n: int,
-        t: int,
-        sens_a: float,
-        sens_b: float,
-        spec_a: float,
-        spec_b: float,
-        *,
-        log2_num_qmc_points: int = 10,
-        mode: str = "unconditional",
-) -> float:
-    """Returns inverse of prevalence cdf evaluated at x for param values
-
-    As derived in Diggle 2011 [0].
-    Uses root finding algorithm to calculate inverse cdf by solving
-    prevalence_cdf(theta, ...) = x for theta.
-
-    Parameters
-    ----------
-    x : float
-        Probability value at which to calculate inverse cdf.
-    n : int
-        Number of samples on which diagnostic test has been run.
-    t : int
-        Number of positives out of all samples.
-    sens_a : float
-        First shape parameter of beta prior for sensitivity.
-    sens_b : float
-        Second shape parameter of beta prior for sensitivity.
-    spec_a : float
-        First shape parameter of beta prior for specificity.
-    spec_b : float
-        Second shape parameter of beta prior for specificity.
-    log2_num_qmc_points : Optional[int]
-       Use 2**log2_num_qmc_points sample points in Sobol sequence.
-       Sobol sequences require the number of sample points to be a
-       power of 2. Controls accuracy at expense of compute time.
-       Default = 10
-    mode : Optional[str]
-        If "unconditional" standard prevalence cdf. If "positive",
-        prevalence cdf conditioned on positive diagnostic test result.
-        If "negative", prevalence cdf conditioned on negative test
-        result. Default "unconditional".
-
-    Returns
-    -------
-    float
-        Value of inverse cdf at x for given parameters.
-
-    References
-    ----------
-    [0] Peter J. Diggle, "Estimating Prevalence Using an Imperfect Test",
-        Epidemiology Research International, vol. 2011, Article ID 608719,
-        5 pages, 2011. https://doi.org/10.1155/2011/608719
-    """
-    def f(theta):
-        return prevalence_cdf(
-            theta,
-            n,
-            t,
-            sens_a,
-            sens_b,
-            spec_a,
-            spec_b,
-            log2_num_qmc_points=log2_num_qmc_points,
-            mode=mode
-        ) - x
-
-    if x == 0 or x == 1:
-        return x
-
-    return root_scalar(
-        f,
-        method="brentq",
-        bracket = [np.nextafter(0, -1), np.nextafter(1, 2)],
-        xtol=np.nextafter(0, 1),
-    ).root 
-
-
 def equal_tailed_interval(
         n: int,
         t: int,
@@ -301,8 +290,9 @@ def equal_tailed_interval(
         spec_b: float,
         *,
         alpha: float = 0.1,
-        log2_num_qmc_points: int = 10,
-        mode: str = "unconditional",
+        n_samples: int = 10000,
+        condition: str | None = None,
+        rng=None,
 ) -> tuple[float, float]:
     """Returns equal tailed prevalence credible interval [1].
 
@@ -327,16 +317,14 @@ def equal_tailed_interval(
     alpha : float
         Significance level. Interval of posterior accounts for
         probability 1 - alpha.
-    log2_num_qmc_points : Optional[int]
-       Use 2**log2_num_qmc_points sample points in Sobol sequence.
-       Sobol sequences require the number of sample points to be a
-       power of 2. Controls accuracy at expense of compute time.
-       Default = 10
-    mode : Optional[str]
-        If "unconditional" standard prevalence cdf. If "positive",
-        prevalence cdf conditioned on positive diagnostic test result.
-        If "negative", prevalence cdf conditioned on negative test
-        result. Default "unconditional".
+    n_samples : Optional[int]
+        Number of Monte-carlo samples used to estimate distribution.
+        Default: 10000
+    condition : Optional[str]
+        If ``None`` computes eti for prevalence among all cases. If "positive",
+        compute eti for prevalence among cases with positive diagnostic
+        test result. If "negative", compute eti for prevalence among cases
+        with negative diagnostic test result.
 
     Returns
     -------
@@ -351,30 +339,11 @@ def equal_tailed_interval(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
-    left, right = (
-        inverse_prevalence_cdf(
-            alpha/2,
-            n,
-            t,
-            sens_a,
-            sens_b,
-            spec_a,
-            spec_b,
-            log2_num_qmc_points=log2_num_qmc_points,
-            mode=mode
-        ),
-        inverse_prevalence_cdf(
-            1 - alpha/2,
-            n,
-            t,
-            sens_a,
-            sens_b,
-            spec_a,
-            spec_b,
-            log2_num_qmc_points=log2_num_qmc_points,
-            mode=mode
-        ),
+    sample = sample_prevalence_posterior(
+        n, t, sens_a, sens_b, spec_a, spec_b, n_samples=1000, rng=rng,
+        condition=condition
     )
+    left, right = np.quantile(sample, [alpha/2, 1.0 - alpha/2])
     return _round_interval(left, right)
 
 
@@ -387,8 +356,9 @@ def highest_density_interval(
         spec_b: float,
         *,
         alpha: float = 0.1,
-        log2_num_qmc_points: int = 10,
-        mode: str = "unconditional",
+        n_samples: int =10000,
+        condition: str | None = None,
+        rng=None,
 ) -> tuple[float, float]:
     """Returns highest density prevalence credible interval [1].
 
@@ -412,16 +382,14 @@ def highest_density_interval(
     alpha : float
         Significance level. Interval of posterior accounts for
         probability 1 - alpha.
-    log2_num_qmc_points : Optional[int]
-       Use 2**log2_num_qmc_points sample points in Sobol sequence.
-       Sobol sequences require the number of sample points to be a
-       power of 2. Controls accuracy at expense of compute time.
-       Default = 10
-    mode : Optional[str]
-        If "unconditional" standard prevalence cdf. If "positive",
-        prevalence cdf conditioned on positive diagnostic test result.
-        If "negative", prevalence cdf conditioned on negative test
-        result. Default "unconditional".
+    n_samples : Optional[int]
+        Number of Monte-carlo samples used to estimate distribution.
+        Default: 10000
+    condition : Optional[str]
+        If ``None`` computes hdi for prevalence among all cases. If "positive",
+        compute hdi for prevalence among cases with positive diagnostic
+        test result. If "negative", compute hdi for prevalence among cases
+        with negative diagnostic test result.
 
     Returns
     -------
@@ -436,21 +404,8 @@ def highest_density_interval(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     [1] https://en.wikipedia.org/wiki/Credible_interval
     """
-    def f(x):
-        A = inverse_prevalence_cdf(
-                x + 1 - alpha, n, t, sens_a, sens_b, spec_a, spec_b,
-                log2_num_qmc_points=log2_num_qmc_points, mode=mode
-        )
-        B = inverse_prevalence_cdf(
-            x, n, t, sens_a, sens_b, spec_a, spec_b,
-            log2_num_qmc_points=log2_num_qmc_points, mode=mode
-        )
-        return A - B
-
-    res = minimize_scalar(f, method="bounded", bounds=[0, alpha])
-    right = inverse_prevalence_cdf(
-        res.x + 1 - alpha, n, t, sens_a, sens_b, spec_a, spec_b,
-        log2_num_qmc_points=log2_num_qmc_points, mode=mode
+    sample = sample_prevalence_posterior(
+        n, t, sens_a, sens_b, spec_a, spec_b, n_samples=1000, rng=rng,
+        condition=condition
     )
-    left = right - res.fun
-    return _round_interval(left, right)
+    return _round_interval(*_hdi_from_sample(sample, alpha=alpha))
