@@ -1,3 +1,4 @@
+import itertools as it
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool
@@ -6,6 +7,10 @@ from scipy.stats import beta
 from scipy.stats import powerlaw
 from opaque.betabinomial_regression import BetaBinomialRegressor
 from opaque.stats import equal_tailed_interval, KL_beta
+
+
+def _eti_fixed_seed(n, t, sens_a, sens_b, spec_a, spec_b):
+    return equal_tailed_interval(n, t, sens_a, sens_b, spec_a, spec_b, rng=1729)
 
 
 class EndtoEndSimulator:
@@ -81,8 +86,6 @@ class EndtoEndSimulator:
         spec_prior = beta(spec_mu * spec_nu, (1 - spec_mu) * spec_nu)
         spec_prior.random_state = self.random_state
         spec = spec_prior.rvs()
-        # sens.shape = sens_mu.shape = sens_nu.shape = (size, 1)
-        # spec.shape = spec_mu.shape = spec_nu.shape = (size, 1)
         N_dist = powerlaw(a=self.n_shape, loc=self.n_loc, scale=self.n_scale)
         N_dist.random_state = self.random_state
         N_inlier = np.floor(N_dist.rvs(size=sens.shape)).astype(int)
@@ -122,7 +125,7 @@ class EndtoEndSimulator:
         X_test = data_test.iloc[:, : self.num_covariates].values
         sens_train = data_train[['N_outlier', 'K_outlier']].values
         spec_train = data_train[['N_inlier', 'K_inlier']].values
-        br = BetaBinomialRegressor()
+        br = BetaBinomialRegressor(cores=min(self.n_jobs, 4))
         br.fit(X_train, sens_train)
         sens_shape, _ = br.predict_shape_params(X_test)
         br.fit(X_train, spec_train)
@@ -151,8 +154,11 @@ class EndtoEndSimulator:
                     theta,
                 ]
             )
-        with Pool(self.n_jobs) as pool:
-            intervals = pool.starmap(equal_tailed_interval, points)
+        if self.n_jobs > 1:
+            with Pool(self.n_jobs) as pool:
+                intervals = pool.starmap(_eti_fixed_seed, points)
+        else:
+            intervals = list(it.starmap(_eti_fixed_seed, points))
         data = np.array(rows)
         intervals = np.array(intervals)
         data = np.hstack([data, intervals])

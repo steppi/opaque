@@ -35,7 +35,7 @@ def test_equal_tailed_interval(test_input):
             ),
         )
         interval = equal_tailed_interval(
-            n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1
+            n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1, rng=1729
         )
         if interval[0] <= theta <= interval[1]:
             hits += 1
@@ -68,7 +68,7 @@ def test_highest_density_interval(test_input):
             ),
         )
         interval = highest_density_interval(
-            n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1
+            n, t, sens_a, sens_b, spec_a, spec_b, alpha=0.1, rng=1729
         )
         if interval[0] <= theta <= interval[1]:
             hits += 1
