@@ -56,10 +56,10 @@ class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
 
     def get_model_info(self):
         return {
-            "intercept_mean": self.intercept_mean,
-            "coef_mean": self.coef_mean,
-            "intercept_disp": self.intercept_disp,
-            "coef_disp": self.coef_disp,
+            "intercept_mean": float(self.intercept_mean),
+            "coef_mean": self.coef_mean.tolist(),
+            "intercept_disp": float(self.intercept_disp),
+            "coef_disp": self.coef_disp.tolist(),
             "mean_use_cols": self.mean_use_cols,
             "disp_use_cols": self.disp_use_cols,
         }
@@ -67,10 +67,10 @@ class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
     @classmethod
     def load(cls, model_info):
         return cls(
-            model_info["intercept_mean"],
-            model_info["coef_mean"],
-            model_info["intercept_disp"],
-            model_info["coef_disp"],
+            np.asarray(model_info["intercept_mean"]),
+            np.asarray(model_info["coef_mean"]),
+            np.asarray(model_info["intercept_disp"]),
+            np.asarray(model_info["coef_disp"]),
             mean_use_cols=model_info["mean_use_cols"],
             disp_use_cols=model_info["disp_use_cols"],
         )
@@ -359,7 +359,6 @@ class DiagnosticTestPriorModel:
             transformer = pipeline.steps[0][1]
             name, estimator = pipeline.steps[1]
             check_is_fitted(transformer)
-            check_is_fitted(estimator)
             if isinstance(estimator, BetaBinomialRegressor):
                 pipeline.set_params(**{name: estimator.distill()})
 
@@ -425,10 +424,10 @@ class DiagnosticTestPriorModel:
 
     def batch_predict_shape_params(self, X):
         X = np.asarray(X)
-        sens_shape, sens_shape_var = self.sens_pipeline.apply_method(
+        sens_shape = self.sens_pipeline.apply_method(
             'predict_shape_params', X
         )
-        spec_shape, spec_shape_var = self.spec_pipeline.apply_method(
+        spec_shape = self.spec_pipeline.apply_method(
             'predict_shape_params', X
         )
         return np.hstack([sens_shape, spec_shape])
