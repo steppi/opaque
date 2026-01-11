@@ -46,7 +46,7 @@ run_name = args.run_name
 seed = 29574310898661272202790385091240407850
 rng = np.random.default_rng(seed)
 
-best_hps = pd.read_csv("best_hps_run6.csv", sep=",")
+best_hps = pd.read_csv("best_hps_run7.csv", sep=",")
 df = pd.read_csv(data_path, sep=',')
 
 # Generate log num training texts features, (smooth with +1 to avoid log 0).
@@ -112,7 +112,7 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
     # Predict prevalence for each case based on model.
     preds = spec_model.predict(X_test, N=N)
     K_pred = preds[:, 1]
-    shape_params, _ = spec_model.apply_method("predict_shape_params", X_test)
+    shape_params = spec_model.apply_method("predict_shape_params", X_test)
     alpha, beta = shape_params[:, 0], shape_params[:, 1]
     K_pred = preds[:, 1]
     log_score = log_score_betabinom(K_true, N, alpha, beta)
@@ -160,7 +160,7 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
     
     # Predict prevalence for each case based on model.
     preds = sens_model.predict(X_test, N=N)
-    shape_params, _ = sens_model.apply_method("predict_shape_params", X_test)
+    shape_params = sens_model.apply_method("predict_shape_params", X_test)
     alpha, beta = shape_params[:, 0], shape_params[:, 1]
     K_pred = preds[:, 1]
     log_score = log_score_betabinom(K_true, N, alpha, beta)

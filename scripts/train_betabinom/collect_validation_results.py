@@ -22,6 +22,7 @@ if __name__ == "__main__":
     cpu_count = multiprocessing.cpu_count()
 
     for key, data in results:
+        print(key)
         len_test_df = len(data["test_df"])
         test_df = dd.from_pandas(data["test_df"], npartitions=cpu_count)
 
@@ -38,6 +39,8 @@ if __name__ == "__main__":
             axis=1,
             meta=("HDI_90", "object"),
         ).compute()
+
+        print(test_df["HDI_90"])
 
         test_df["HDI_95"] = test_df.apply(
             lambda row: highest_density_interval(
@@ -158,12 +161,6 @@ if __name__ == "__main__":
 
 
         test_df = data["test_df"] = test_df.compute()
-
-        for key in (
-                "HDI_90", "HDI_95", "HDI_99", "HDI_90_pos", "HDI_95_pos", "HDI_99_pos",
-                "HDI_90_neg", "HDI_95_neg", "HDI_99_neg"
-        ):
-            test_df[key] = test_df[key].apply(ast.literal_eval)
 
         test_df["prevalence"] = test_df.apply(
             lambda row: row.N_outlier / (row.N_outlier + row.N_inlier),

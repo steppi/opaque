@@ -43,7 +43,7 @@ df['log_num_mesh'] = np.log(df.num_mesh + 1)
 df_spec = df[df.N_inlier > 0]
 df_sens = df[df.N_outlier > 0]
 
-best_hps = pd.read_csv("best_hps_outer_2025_12_30.csv", sep=",")
+best_hps = pd.read_csv("best_hps_outer_2025_12_30_distilled.csv", sep=",")
 
 prior_type, coeff_scale = best_hps[best_hps.target_type == "specificity"][
     ["prior_type", "coeff_scale"]
@@ -102,11 +102,11 @@ sens_model.fit(X_sens, y_sens)
 diag_prior_model = DiagnosticTestPriorModel(sens_model, spec_model)
 model_info = diag_prior_model.get_model_info()
 
-with open("diag_prior_model.json", "w") as f:
+with open("diag_prior_model_distilled.json", "w") as f:
     json.dump(model_info, f)
 
 
-with open("diag_prior_model.json") as f:
+with open("diag_prior_model_distilled.json") as f:
     model_info2 = json.load(f)
 
 diag_prior_model2 = DiagnosticTestPriorModel.load(model_info2)

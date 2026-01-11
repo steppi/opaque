@@ -119,6 +119,7 @@ for (
         ]
     )
     model.fit(X_outer_train, y_outer_train)
+    model.set_params(betabinom=model.named_steps["betabinom"].distill())
 
     N = y_outer_train[:, 0]
     K_true = y_outer_train[:, 1]
@@ -126,7 +127,7 @@ for (
     # Predict prevalence for each case based on model.
     preds = model.predict(X_outer_train, N=N)
     K_pred = preds[:, 1]
-    shape_params, _ = model.apply_method(
+    shape_params = model.apply_method(
         "predict_shape_params", X_outer_train
     )
     alpha, beta = shape_params[:, 0], shape_params[:, 1]
