@@ -405,7 +405,6 @@ class HighestDensityRegion2d:
         ax.grid(True, which='major', linestyle='-', linewidth=0.8, alpha=0.6)
         ax.grid(True, which='minor', linestyle=':', linewidth=0.5, alpha=0.4)
 
-        # Draw grid behind contours
         ax.set_axisbelow(False)
 
         return fig, ax
