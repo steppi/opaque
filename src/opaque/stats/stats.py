@@ -3,6 +3,8 @@ import numpy as np
 import scipy.special as sc
 import scipy.stats as stats
 
+from typing import NamedTuple
+
 from numpy.typing import ArrayLike, NDArray
 from scipy.stats import qmc
 
@@ -309,3 +311,101 @@ def highest_density_interval(
         condition=condition
     )
     return _round_interval(*_hdi_from_sample(sample, alpha=alpha))
+
+
+class Metrics(NamedTuple):
+    precision: float
+    recall: float
+
+
+def sample_estimated_metrics(
+        n_pred_pos,
+        t_pred_pos_diag_pos,
+        n_pred_neg,
+        t_pred_neg_diag_pos,
+        sens_a,
+        sens_b,
+        spec_a,
+        spec_b,
+        *,
+        n_samples=1,
+        rng=None,
+):
+    samples = sample_prevalence_posterior(
+        [n_pred_pos, n_pred_neg],
+        [t_pred_pos_diag_pos, t_pred_neg_diag_pos],
+        sens_a,
+        sens_b,
+        spec_a,
+        spec_b,
+        n_samples=n_samples,
+        rng=rng,
+    )
+    precision = samples[:, 0]
+    false_omission_rate = samples[:, 1]
+    recall = precision / (
+        precision + false_omission_rate * n_pred_neg / n_pred_pos
+    )
+    return Metrics(precision, recall)
+
+
+class HighestDensityRegion2d:
+    def __init__(self, samples, x_metric, y_metric, **kde_kwargs):
+        self.samples = samples
+        self.x_metric = x_metric
+        self.y_metric = y_metric
+        self.kde = stats.gaussian_kde(samples.T, **kde_kwargs)
+
+        densities = self.kde(self.samples.T)
+        self.sorted_densities = np.sort(densities)[::-1]
+        self.cumsum = np.cumsum(self.sorted_densities)
+        self.cumsum /= self.cumsum[-1]
+
+    def threshold(self, alpha):
+        idx = np.searchsorted(self.cumsum, alpha)
+        return self.sorted_densities[idx]
+
+    def contains(self, points, *, alpha=0.9):
+        points = np.atleast_2d(points)
+        densities = self.kde(points.T)
+        return densities >= self.threshold(alpha)
+
+    def plot(self, xlims=(0, 1), ylims=(0, 1), *, grid_size=200, alpha=0.9):
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import MaxNLocator, AutoMinorLocator
+
+        x = np.linspace(xlims[0], xlims[1], grid_size)
+        y = np.linspace(ylims[0], ylims[1], grid_size)
+        X, Y = np.meshgrid(x, y)
+        grid_points = np.column_stack([X.ravel(), Y.ravel()])
+
+        Z = self.kde(grid_points.T).reshape(X.shape)
+
+        thresh = self.threshold(alpha)
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        heatmap = ax.contourf(X, Y, Z, levels=100, cmap='viridis')
+        fig.colorbar(heatmap, ax=ax, label='Density')
+
+        ax.contour(X, Y, Z, levels=[thresh], linestyles="--", colors='red', linewidths=2)
+
+        ax.set_xlim(xlims)
+        ax.set_ylim(ylims)
+        ax.set_xlabel(self.x_metric)
+        ax.set_ylabel(self.y_metric)
+        ax.set_title(f'2D Density with {int(alpha*100)}% HDR')
+
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
+
+        ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+        ax.yaxis.set_minor_locator(AutoMinorLocator(2))
+
+        ax.grid(True, which='major', linestyle='-', linewidth=0.8, alpha=0.6)
+        ax.grid(True, which='minor', linestyle=':', linewidth=0.5, alpha=0.4)
+
+        # Draw grid behind contours
+        ax.set_axisbelow(False)
+
+        return fig, ax
