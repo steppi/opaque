@@ -103,9 +103,9 @@ def train_anomaly_detector(
         ]
     shape_params = None
     if predict_shape_params and features is not None:
-        prior_model = DiagnosticTestPriorModel.load(
-            DIAGNOSTIC_TEST_PRIOR_MODEL_PATH,
-        )
+        with open(DIAGNOSTIC_TEST_PRIOR_MODEL_PATH) as f:
+            model_info = json.load(f)
+        prior_model = DiagnosticTestPriorModel.load(model_info)
         sp = prior_model.predict_shape_params(*features)
         shape_params = {
             "sens_alpha": sp.sens_alpha,

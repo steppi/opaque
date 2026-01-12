@@ -16,10 +16,10 @@ NEGATIVE_SET_PATH = os.path.join(
     OPAQUE_HOME, "negative_set.json"
 )
 DIAGNOSTIC_TEST_PRIOR_MODEL_PATH = os.path.join(
-    OPAQUE_HOME, "prior_model.pkl"
+    OPAQUE_HOME, "diag_prior_model_distilled.json"
 )
 ADEFT_BETABINOM_DATASET_PATH = os.path.join(
-    OPAQUE_HOME, "adeft_betabinom_dataset.csv"
+    OPAQUE_HOME, "adeft_betabinom_dataset_2025_12_23.csv"
 )
 S3_BUCKET = "adeft"
 S3_KEY_PREFIX = f"opaque/{__version__}"
