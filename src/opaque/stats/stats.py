@@ -368,12 +368,16 @@ class HighestDensityRegion2d:
 
         self.X = X
         self.Y = Y
-        self.Z = densities
+        self.Z = densities.reshape(X.shape)
         self.sorted_densities = densities[sorted_indices]
-        self.sorted_mass_cumsum = np.cumsum(self.sorted_densities * cell_area)
+        sorted_mass_cumsum = np.cumsum(self.sorted_densities * cell_area)
+        sorted_mass_cumsum /= sorted_mass_cumsum[-1]
+        self.sorted_mass_cumsum = sorted_mass_cumsum
+        
 
     def threshold(self, alpha):
-        idx = np.searchsorted(self.sorted_mass_cumsum, alpha)
+        idx = np.searchsorted(self.sorted_mass_cumsum, alpha, side="right")
+        idx = min(idx, len(self.sorted_densities - 1))
         return self.sorted_densities[idx]
 
     def contains(self, points, *, alpha=0.9):
