@@ -8,6 +8,8 @@ from typing import NamedTuple
 from numpy.typing import ArrayLike, NDArray
 from scipy.stats import qmc
 
+from opaque.utils import load_array, serialize_array
+
 from ._stats import log_betainc_ufunc as log_betainc
 from ._stats import prevalence_cdf_fixed_ufunc as prevalence_cdf_fixed
 from ._stats import prevalence_cdf_positive_fixed_ufunc as prevalence_cdf_positive_fixed
@@ -350,20 +352,27 @@ def sample_estimated_metrics(
 
 
 class HighestDensityRegion2d:
-    def __init__(self, samples, x_metric, y_metric, *, grid_size=200, **kde_kwargs):
-        self.samples = samples
+    def __init__(self, x_metric, y_metric, *, grid_size=200, **kde_kwargs):
         self.x_metric = x_metric
         self.y_metric = y_metric
-        self.kde = stats.gaussian_kde(samples.T, **kde_kwargs)
+        self.grid_size = grid_size
+        self.kde_kwargs = kde_kwargs
+        self._fitted = False
+        self.X = None
+        self.Y = None
+        self.Z = None
+        self.kde = None
+        self.sorted_densities = None
+        self.sorted_mass_cumsum = None
 
-
-        x = np.linspace(0, 1, grid_size)
-        y = np.linspace(0, 1, grid_size)
+    def fit(self, samples):
+        self.kde = stats.gaussian_kde(samples.T, **self.kde_kwargs)
+        x = np.linspace(0, 1, self.grid_size)
+        y = np.linspace(0, 1, self.grid_size)
         X, Y = np.meshgrid(x, y)
         grid_points = np.column_stack([X.ravel(), Y.ravel()])
         densities = self.kde(grid_points.T)
-        cell_area = 1.0 / (grid_size - 1)**2
-
+        cell_area = 1.0 / (self.grid_size - 1)**2
         sorted_indices = np.argsort(densities)[::-1]
 
         self.X = X
@@ -373,11 +382,13 @@ class HighestDensityRegion2d:
         sorted_mass_cumsum = np.cumsum(self.sorted_densities * cell_area)
         sorted_mass_cumsum /= sorted_mass_cumsum[-1]
         self.sorted_mass_cumsum = sorted_mass_cumsum
-        
+        self._fitted = True
 
     def threshold(self, alpha):
+        if not self._fitted:
+            raise RuntimeError("kde has not been fit.")
         idx = np.searchsorted(self.sorted_mass_cumsum, alpha, side="right")
-        idx = min(idx, len(self.sorted_densities - 1))
+        idx = min(idx, len(self.sorted_densities) - 1)
         return self.sorted_densities[idx]
 
     def contains(self, points, *, alpha=0.9):
@@ -417,3 +428,43 @@ class HighestDensityRegion2d:
         ax.grid(True, which='minor', linestyle=':', linewidth=0.5, alpha=0.4)
 
         return fig, ax
+
+    def to_json(self):
+        if not self._fitted:
+            raise RuntimeError("kde has not been fitted.")
+        return {
+            "x_metric": self.x_metric,
+            "y_metric": self.y_metric,
+            "grid_size": self.grid_size,
+            "X": serialize_array(self.X, compress=True),
+            "Y": serialize_array(self.Y, compress=True),
+            "Z": serialize_array(self.Z, compress=True),
+            "kde": {
+                "dataset": serialize_array(self.kde.dataset, compress=True),
+                "weights": serialize_array(self.kde._weights, compress=True),
+                "factor": float(self.kde.factor)
+            },
+            "sorted_densities": serialize_array(self.sorted_densities, compress=True),
+            "sorted_mass_cumsum": serialize_array(self.sorted_mass_cumsum, compress=True),
+        }
+
+    @classmethod
+    def from_json(cls, hdr_info):
+        x_metric, y_metric = hdr_info["x_metric"], hdr_info["y_metric"]
+        grid_size = hdr_info["grid_size"]
+        result = cls(x_metric, y_metric, grid_size=grid_size)
+        dataset = load_array(hdr_info["kde"]["dataset"], compressed=True)
+        weights = load_array(hdr_info["kde"]["weights"], compressed=True)
+        factor = float(hdr_info["kde"]["factor"])
+        result.kde = stats.gaussian_kde(dataset, weights=weights, bw_method=factor)
+        result.X = load_array(hdr_info["X"], compressed=True)
+        result.Y = load_array(hdr_info["Y"], compressed=True)
+        result.Z = load_array(hdr_info["Z"], compressed=True)
+        result.sorted_densities = load_array(
+            hdr_info["sorted_densities"], compressed=True
+        )
+        result.sorted_mass_cumsum = load_array(
+            hdr_info["sorted_mass_cumsum"], compressed=True
+        )
+        result._fitted = True
+        return result
