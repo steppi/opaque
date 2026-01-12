@@ -350,19 +350,30 @@ def sample_estimated_metrics(
 
 
 class HighestDensityRegion2d:
-    def __init__(self, samples, x_metric, y_metric, **kde_kwargs):
+    def __init__(self, samples, x_metric, y_metric, *, grid_size=200, **kde_kwargs):
         self.samples = samples
         self.x_metric = x_metric
         self.y_metric = y_metric
         self.kde = stats.gaussian_kde(samples.T, **kde_kwargs)
 
-        densities = self.kde(self.samples.T)
-        self.sorted_densities = np.sort(densities)[::-1]
-        self.cumsum = np.cumsum(self.sorted_densities)
-        self.cumsum /= self.cumsum[-1]
+
+        x = np.linspace(0, 1, grid_size)
+        y = np.linspace(0, 1, grid_size)
+        X, Y = np.meshgrid(x, y)
+        grid_points = np.column_stack([X.ravel(), Y.ravel()])
+        densities = self.kde(grid_points.T)
+        cell_area = 1.0 / (grid_size - 1)**2
+
+        sorted_indices = np.argsort(densities)[::-1]
+
+        self.X = X
+        self.Y = Y
+        self.Z = densities
+        self.sorted_densities = densities[sorted_indices]
+        self.sorted_mass_cumsum = np.cumsum(self.sorted_densities * cell_area)
 
     def threshold(self, alpha):
-        idx = np.searchsorted(self.cumsum, alpha)
+        idx = np.searchsorted(self.sorted_mass_cumsum, alpha)
         return self.sorted_densities[idx]
 
     def contains(self, points, *, alpha=0.9):
@@ -370,25 +381,21 @@ class HighestDensityRegion2d:
         densities = self.kde(points.T)
         return densities >= self.threshold(alpha)
 
-    def plot(self, xlims=(0, 1), ylims=(0, 1), *, grid_size=200, alpha=0.9):
+    def plot(self, xlims=(0, 1), ylims=(0, 1), *, alpha=0.9):
         import matplotlib.pyplot as plt
         from matplotlib.ticker import MaxNLocator, AutoMinorLocator
-
-        x = np.linspace(xlims[0], xlims[1], grid_size)
-        y = np.linspace(ylims[0], ylims[1], grid_size)
-        X, Y = np.meshgrid(x, y)
-        grid_points = np.column_stack([X.ravel(), Y.ravel()])
-
-        Z = self.kde(grid_points.T).reshape(X.shape)
 
         thresh = self.threshold(alpha)
 
         fig, ax = plt.subplots(figsize=(6, 5))
 
-        heatmap = ax.contourf(X, Y, Z, levels=100, cmap='viridis')
+        heatmap = ax.contourf(self.X, self.Y, self.Z, levels=100, cmap='viridis')
         fig.colorbar(heatmap, ax=ax, label='Density')
 
-        ax.contour(X, Y, Z, levels=[thresh], linestyles="--", colors='red', linewidths=2)
+        ax.contour(
+            self.X, self.Y, self.Z, levels=[thresh], linestyles="--",
+            colors='red', linewidths=2
+        )
 
         ax.set_xlim(xlims)
         ax.set_ylim(ylims)
