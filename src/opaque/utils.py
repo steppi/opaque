@@ -5,6 +5,7 @@ from scipy import sparse
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import StratifiedKFold
 import tempfile
+import zlib
 
 
 class AnyMethodPipeline(Pipeline):
@@ -78,19 +79,24 @@ class SubsetSampler:
         return list(results)
 
 
-def serialize_array(X):
+def serialize_array(X, *, compress=False):
     memfile = io.BytesIO()
     if sparse.issparse(X):
         sparse.save_npz(memfile, X)
     else:
         np.save(memfile, X)
     memfile.seek(0)
-    return memfile.read().decode('latin-1')
+    bytes_ = memfile.read()
+    if compress:
+        bytes_ = zlib.compress(bytes_)
+    return bytes_.decode('latin-1')
 
 
-def load_array(data):
-    memfile = io.BytesIO()
-    memfile.write(data.encode('latin-1'))
+def load_array(data, *, compressed=False):
+    bytes_ = data.encode('latin-1')
+    if compressed:
+        bytes_ = zlib.decompress(bytes_)
+    memfile = io.BytesIO(bytes_)
     memfile.seek(0)
     X = np.load(memfile)
     if isinstance(X, np.ndarray):
