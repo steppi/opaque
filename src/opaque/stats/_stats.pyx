@@ -231,47 +231,34 @@ cdef double log_betainc_ufunc(double p, double q, double x) nogil:
 
 @cython.ufunc
 cdef double prevalence_cdf_fixed_ufunc(
-        double theta, int64_t n, int64_t t, double sensitivity, double specificity
+        double theta, int64_t n, int64_t t, double sensitivity, double specificity,
+        int64_t cond
 ) nogil:
-    return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+    if cond == 0:
+        return prevalence_cdf_fixed(theta, n, t, sensitivity, specificity)
+    if cond == 1:
+        return prevalence_cdf_positive_fixed(theta, n, t, sensitivity, specificity)
+    if cond == -1:
+        return prevalence_cdf_negative_fixed(theta, n, t, sensitivity, specificity)
+    return NAN
 
-
-@cython.ufunc
-cdef double prevalence_cdf_positive_fixed_ufunc(
-        double psi, int64_t n, int64_t t, double sensitivity, double specificity
-) nogil:
-    return prevalence_cdf_positive_fixed(psi, n, t, sensitivity, specificity)
-
-
-@cython.ufunc
-cdef double prevalence_cdf_negative_fixed_ufunc(
-        double psi, int64_t n, int64_t t, double sensitivity, double specificity
-) nogil:
-    return prevalence_cdf_negative_fixed(psi, n, t, sensitivity, specificity)
 
 
 @cython.ufunc
 cdef double inverse_prevalence_cdf_fixed_ufunc(
-    double p, int64_t n, int64_t t, double sensitivity, double specificity
+    double p, int64_t n, int64_t t, double sensitivity, double specificity,
+    int64_t cond
 ) nogil:
-    return inverse_prevalence_cdf_fixed(
-        p, n, t, sensitivity, specificity, prevalence_cdf_fixed
-    )
-
-
-@cython.ufunc
-cdef double inverse_prevalence_cdf_positive_fixed_ufunc(
-    double p, int64_t n, int64_t t, double sensitivity, double specificity
-) nogil:
-    return inverse_prevalence_cdf_fixed(
-        p, n, t, sensitivity, specificity, prevalence_cdf_positive_fixed
-    )
-
-
-@cython.ufunc
-cdef double inverse_prevalence_cdf_negative_fixed_ufunc(
-    double p, int64_t n, int64_t t, double sensitivity, double specificity
-) nogil:
-    return inverse_prevalence_cdf_fixed(
-        p, n, t, sensitivity, specificity, prevalence_cdf_negative_fixed
-    )
+    if cond == 0:
+        return inverse_prevalence_cdf_fixed(
+            p, n, t, sensitivity, specificity, prevalence_cdf_fixed
+        )
+    if cond == 1:
+        return inverse_prevalence_cdf_fixed(
+            p, n, t, sensitivity, specificity, prevalence_cdf_positive_fixed
+        )
+    if cond == -1:
+        return inverse_prevalence_cdf_fixed(
+            p, n, t, sensitivity, specificity, prevalence_cdf_negative_fixed
+        )
+    return NAN

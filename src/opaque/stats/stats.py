@@ -12,15 +12,8 @@ from opaque.utils import load_array, serialize_array
 
 from ._stats import log_betainc_ufunc as log_betainc
 from ._stats import prevalence_cdf_fixed_ufunc as prevalence_cdf_fixed
-from ._stats import prevalence_cdf_positive_fixed_ufunc as prevalence_cdf_positive_fixed
-from ._stats import prevalence_cdf_negative_fixed_ufunc as prevalence_cdf_negative_fixed
 from ._stats import inverse_prevalence_cdf_fixed_ufunc as inverse_prevalence_cdf_fixed
-from ._stats import (
-    inverse_prevalence_cdf_positive_fixed_ufunc as inverse_prevalence_cdf_positive_fixed
-)
-from ._stats import (
-    inverse_prevalence_cdf_positive_fixed_ufunc as inverse_prevalence_cdf_negative_fixed
-)
+
 
 
 logger = logging.getLogger(__file__)
@@ -29,7 +22,7 @@ logger = logging.getLogger(__file__)
 def _round_interval(left, right, *, digits=6):
     scale = 10**digits
     left, right = np.floor(left * scale) / scale, np.ceil(right * scale) / scale
-    return np.clip(left, 0.0, 1.0), np.clip(right, 0.0, 1.0)
+    return float(np.clip(left, 0.0, 1.0)), float(np.clip(right, 0.0, 1.0))
 
 
 def KL_beta(a1, b1, a2, b2):
@@ -63,17 +56,8 @@ def sample_prevalence_posterior(
     elif isinstance(rng, (int, np.integer)):
         rng = np.random.default_rng(rng)
 
-    if condition == "positive":
-        inv_func = inverse_prevalence_cdf_positive_fixed
-    elif condition == "negative":
-        inv_func = inverse_prevalence_cdf_negative_fixed
-    elif condition is None:
-        inv_func = inverse_prevalence_cdf_fixed
-    else:
-        raise ValueError(
-            "condition must be one of None, 'positive', or 'negative'."
-            f" received {condition}"
-        )
+    if condition is None:
+        condition = 0
 
     n, t = np.asarray(n), np.asarray(t)
     data_shape = np.broadcast_shapes(n.shape, t.shape)
@@ -83,12 +67,13 @@ def sample_prevalence_posterior(
 
     U = rng.uniform(0.0, 1.0, size=(n_samples,) + data_shape)
 
-    theta = inv_func(
+    theta = inverse_prevalence_cdf_fixed(
         U,
         n[np.newaxis, ...],
         t[np.newaxis, ...],
         sens.reshape(sens.shape + (1,) * n.ndim),
         spec.reshape(spec.shape + (1,) * n.ndim),
+        condition,
     )
     return theta[()]
 
@@ -161,11 +146,11 @@ def prevalence_cdf(
         5 pages, 2011. https://doi.org/10.1155/2011/608719
     """
     if mode == "unconditional":
-        pfunc = prevalence_cdf_fixed
+        cond = 0
     elif mode == "positive":
-        pfunc = prevalence_cdf_positive_fixed
+        cond = 1
     elif mode == "negative":
-        pfunc = prevalence_cdf_negative_fixed
+        cond = -1
     else:
         raise ValueError(
             'mode should be one of "unconditional", "positive", "negative", '
@@ -176,12 +161,13 @@ def prevalence_cdf(
     sample= sampler.random_base2(m=log2_num_qmc_points)
     sens_sample = sc.betaincinv(sens_a, sens_b, sample[:, 0])
     spec_sample = sc.betaincinv(spec_a, spec_b, sample[:, 1])
-    return pfunc(
+    return prevalence_cdf_fixed(
         theta[..., np.newaxis],
         n,
         t,
         sens_sample[np.newaxis, :],
         spec_sample[np.newaxis, :],
+        cond,
     ).mean(axis=-1)
 
 
@@ -322,20 +308,21 @@ class Metrics(NamedTuple):
 
 def sample_estimated_metrics(
         n_pred_pos,
-        t_pred_pos_diag_pos,
+        t_pred_pos,
         n_pred_neg,
-        t_pred_neg_diag_pos,
+        t_pred_neg,
         sens_a,
         sens_b,
         spec_a,
         spec_b,
         *,
         n_samples=1,
+        
         rng=None,
 ):
     samples = sample_prevalence_posterior(
         [n_pred_pos, n_pred_neg],
-        [t_pred_pos_diag_pos, t_pred_neg_diag_pos],
+        [t_pred_pos, t_pred_neg],
         sens_a,
         sens_b,
         spec_a,
@@ -343,11 +330,12 @@ def sample_estimated_metrics(
         n_samples=n_samples,
         rng=rng,
     )
-    precision = samples[:, 0]
-    false_omission_rate = samples[:, 1]
+    precision = 1.0 - samples[:, 0]
+    false_omission_rate = 1.0 - samples[:, 1]
     recall = precision / (
         precision + false_omission_rate * n_pred_neg / n_pred_pos
     )
+    recall = np.where(np.isnan(recall), 0.0, recall)
     return Metrics(precision, recall)
 
 

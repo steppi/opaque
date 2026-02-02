@@ -10,8 +10,6 @@ import pytest
 import numpy as np
 
 from opaque.stats import prevalence_cdf_fixed
-from opaque.stats import prevalence_cdf_negative_fixed
-from opaque.stats import prevalence_cdf_positive_fixed
 
 here = os.path.dirname(os.path.realpath(__file__))
 TEST_DATA_LOCATION = os.path.join(here, 'data')
@@ -43,16 +41,16 @@ class TestPrevalenceCdfFixed:
             self, n, t, sens, spec, num_grid_points, results, mode
     ):
         if mode == "unconditional":
-            pfunc = prevalence_cdf_fixed
+            cond = 0
         elif mode == "negative":
-            pfunc = prevalence_cdf_negative_fixed
+            cond = -1
         elif mode == "positive":
-            pfunc = prevalence_cdf_positive_fixed
+            cond = 1
         else:
             raise ValueError(f"Invalid mode {mode}")
         simulated_cdf = np.array(results[f"{n}:{t}"])
         theta = np.linspace(0, 1, num_grid_points)
-        calculated_cdf = pfunc(theta, n, t, sens, spec)
+        calculated_cdf = prevalence_cdf_fixed(theta, n, t, sens, spec, cond)
         residuals = np.abs(simulated_cdf - calculated_cdf)
         mean_absolute_error = np.sum(residuals) / num_grid_points
         max_absolute_error = np.max(residuals)
