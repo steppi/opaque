@@ -333,10 +333,6 @@ class ShapeParamResults(NamedTuple):
     sens_beta: float
     spec_alpha: float
     spec_beta: float
-    sens_alpha_var: float
-    sens_beta_var: float
-    spec_alpha_var: float
-    spec_beta_var: float
 
 
 class DiagnosticTestPriorModel:
@@ -405,10 +401,10 @@ class DiagnosticTestPriorModel:
                 ]
             ]
         )
-        sens_shape, sens_shape_var = self.sens_pipeline.apply_method(
+        sens_shape = self.sens_pipeline.apply_method(
             'predict_shape_params', X
         )
-        spec_shape, spec_shape_var = self.spec_pipeline.apply_method(
+        spec_shape = self.spec_pipeline.apply_method(
             'predict_shape_params', X
         )
         return ShapeParamResults(
@@ -416,10 +412,6 @@ class DiagnosticTestPriorModel:
             sens_beta=sens_shape[0, 1],
             spec_alpha=spec_shape[0, 0],
             spec_beta=spec_shape[0, 1],
-            sens_alpha_var=sens_shape_var[0, 0],
-            sens_beta_var=sens_shape_var[0, 1],
-            spec_alpha_var=spec_shape_var[0, 0],
-            spec_beta_var=spec_shape_var[0, 1],
         )
 
     def batch_predict_shape_params(self, X):

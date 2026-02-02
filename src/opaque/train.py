@@ -112,10 +112,6 @@ def train_anomaly_detector(
             "sens_beta": sp.sens_beta,
             "spec_alpha": sp.spec_alpha,
             "spec_beta": sp.spec_beta,
-            "sens_alpha_var": sp.sens_alpha_var,
-            "sens_beta_var": sp.sens_beta_var,
-            "spec_alpha_var": sp.spec_alpha_var,
-            "spec_beta_var": sp.spec_beta_var,
         }
 
     return {
