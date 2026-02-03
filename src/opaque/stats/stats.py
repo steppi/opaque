@@ -307,36 +307,50 @@ class Metrics(NamedTuple):
 
 
 def sample_estimated_metrics(
-        n_pred_pos,
-        t_pred_pos,
-        n_pred_neg,
-        t_pred_neg,
+        n,
+        t,
+        m,
+        u,
         sens_a,
         sens_b,
         spec_a,
         spec_b,
         *,
         n_samples=1,
-        
         rng=None,
 ):
     samples = sample_prevalence_posterior(
-        [n_pred_pos, n_pred_neg],
-        [t_pred_pos, t_pred_neg],
+        [n, n, n, m],
+        [t, t, t, u],
         sens_a,
         sens_b,
         spec_a,
         spec_b,
         n_samples=n_samples,
+        condition=[0, -1, 1, 0],
         rng=rng,
     )
     precision = 1.0 - samples[:, 0]
-    false_omission_rate = 1.0 - samples[:, 1]
+    false_omission_rate = 1.0 - samples[:, 3]
     recall = precision / (
-        precision + false_omission_rate * n_pred_neg / n_pred_pos
+        precision + false_omission_rate * m / n
     )
     recall = np.where(np.isnan(recall), 0.0, recall)
-    return Metrics(precision, recall)
+
+    precision_requiring_consensus = 1.0 - samples[:, 1]
+    s = m + n - t
+    false_omission_rate_requiring_consensus = (
+        s - samples[:, 3] * m - samples[:, 2] * (n - t)
+    ) / s
+    recall_requiring_consensus = precision_requiring_consensus / (
+        precision_requiring_consensus + false_omission_rate_requiring_consensus * s / n
+    )
+    return {
+        "standard": Metrics(precision, recall),
+        "consensus": Metrics(
+            precision_requiring_consensus, recall_requiring_consensus
+        )
+    }
 
 
 class HighestDensityRegion2d:
