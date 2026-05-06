@@ -1,10 +1,10 @@
 import numpy as np
 from scipy.sparse import issparse
 from sklearn.svm import OneClassSVM
+from sklearn.linear_model import SGDOneClassSVM
 from sklearn.base import BaseEstimator, OutlierMixin
 from sklearn.utils.extmath import safe_sparse_dot
 from sklearn.utils.validation import check_is_fitted
-
 
 from opaque.utils import load_array, serialize_array
 
@@ -16,20 +16,48 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
             nu=0.5,
             tol=1e-3,
             verbose=False,
+            solver="libsvm",
+            **kwargs,
     ):
         self.nu = nu
         self.tol = tol
         self.verbose = False
+        if solver not in {"libsvm", "sgd"}:
+            raise ValueError(
+                f"solver should be one of 'libsvm' or 'sgd', got {solver}"
+            )
+        self.solver = solver
+        kwargs.pop("nu", None)
+        kwargs.pop("tol", None)
+        kwargs.pop("verbose", None)
+        self.kwargs = kwargs
 
     def _fit_libsvm(self, X):
         model = OneClassSVM(
-            kernel='linear', nu=self.nu, tol=self.tol, verbose=self.verbose
+            kernel='linear',
+            nu=self.nu,
+            tol=self.tol,
+            verbose=self.verbose,
+            **self.kwargs,
+        )
+        model.fit(X)
+        return model.coef_, model.intercept_
+
+    def _fit_sgd(self, X):
+        model = SGDOneClassSVM(
+            nu=self.nu,
+            tol=self.tol,
+            verbose=self.verbose,
+            **self.kwargs,
         )
         model.fit(X)
         return model.coef_, model.intercept_
 
     def fit(self, X, y=None):
-        coef, intercept = self._fit_libsvm(X)
+        if self.solver == "libsvm":
+            coef, intercept = self._fit_libsvm(X)
+        else:
+            coef, intercept = self._fit_sgd(X)
         self.coef_, self.intercept_ = coef, intercept
         return self
 
