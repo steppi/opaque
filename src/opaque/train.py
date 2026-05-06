@@ -30,6 +30,7 @@ def train_anomaly_detector(
         num_db_texts=None,
         num_reader_texts=None,
         stop_words=None,
+        solver="sgd",
 ):
     if negative_texts is None:
         with open(NEGATIVE_SET_PATH) as f:
@@ -47,7 +48,7 @@ def train_anomaly_detector(
                 stop_words=stop_words,
                 smartirs="ntc",
             ),
-            LinearOneClassSVM(nu=nu)
+            LinearOneClassSVM(nu=nu, solver=solver)
         )
         kfold = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
         splits = kfold.split(train_texts)
