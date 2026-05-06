@@ -4,7 +4,6 @@ import json
 import numpy as np
 from sklearn.model_selection import KFold
 
-from opaque.locations import BACKGROUND_DICTIONARY_PATH
 from opaque.locations import DIAGNOSTIC_TEST_PRIOR_MODEL_PATH
 from opaque.locations import NEGATIVE_SET_PATH
 from opaque.nlp.featurize import BaselineTfidfVectorizer
@@ -28,10 +27,16 @@ def train_anomaly_detector(
         predict_shape_params=False,
         num_mesh_texts=None,
         num_entrez_texts=None,
+        num_db_texts=None,
+        num_reader_texts=None,
+        stop_words=None,
 ):
     if negative_texts is None:
         with open(NEGATIVE_SET_PATH) as f:
             negative_texts = json.load(f)
+    if stop_words is None:
+        stop_words = []
+    stop_words = list(set(stop_words) | set(agent_texts))
     stats = {}
     for nu, max_features in product(nu_vals, max_features_vals):
         ad_model = GroundingAnomalyDetector(
@@ -39,12 +44,12 @@ def train_anomaly_detector(
                 max_features_per_class=max_features,
                 no_above=no_above,
                 no_below=no_below,
-                stop_words=agent_texts,
+                stop_words=stop_words,
                 smartirs="ntc",
             ),
             LinearOneClassSVM(nu=nu)
         )
-        kfold = KFold(n_splits=5, shuffle=True, random_state=random_state)
+        kfold = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
         splits = kfold.split(train_texts)
         spec_list = []
         for train, test in splits:
@@ -75,7 +80,7 @@ def train_anomaly_detector(
             max_features_per_class=best_max_features,
             no_above=no_above,
             no_below=no_below,
-            stop_words=agent_texts,
+            stop_words=stop_words,
             smartirs="ntc",
         ),
         LinearOneClassSVM(nu=best_nu)
@@ -90,6 +95,8 @@ def train_anomaly_detector(
     ):
         log_num_mesh = np.log(num_mesh_texts + 1)
         log_num_entrez = np.log(num_entrez_texts + 1)
+        log_num_db = np.log(num_db_texts + 1)
+        log_num_reader = np.log(num_reader_texts + 1)
         best_params = (best_nu, best_max_features)
         sens_neg_set, _, mean_spec, std_spec, _ = stats[best_params]
         features = [
@@ -97,6 +104,8 @@ def train_anomaly_detector(
             best_max_features,
             log_num_entrez,
             log_num_mesh,
+            log_num_db,
+            log_num_reader,
             sens_neg_set,
             mean_spec,
             std_spec,
