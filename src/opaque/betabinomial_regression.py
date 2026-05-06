@@ -5,6 +5,7 @@ import pymc as pm
 from typing import NamedTuple
 
 from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.preprocessing import StandardScaler
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 from opaque.utils import AnyMethodPipeline
@@ -221,7 +222,7 @@ class BetaBinomialRegressor(BaseEstimator, RegressorMixin):
             pymc_args["random_seed"] = int(
                 self.random_state.integers(0, 2**32 + 1)
             )
-            
+
         with self.model_:
             pm.set_data(
                 {
@@ -353,8 +354,12 @@ class DiagnosticTestPriorModel:
         for pipeline in sens_pipeline, spec_pipeline:
             assert len(pipeline.steps) == 2
             transformer = pipeline.steps[0][1]
+            assert isinstance(transformer, StandardScaler)
             name, estimator = pipeline.steps[1]
             check_is_fitted(transformer)
+            assert isinstance(
+                estimator, (BetaBinomialRegressor, DistilledBetaBinomialRegressor)
+            )
             if isinstance(estimator, BetaBinomialRegressor):
                 pipeline.set_params(**{name: estimator.distill()})
 
@@ -431,18 +436,23 @@ class DiagnosticTestPriorModel:
         spec_transformer = self.spec_pipeline.steps[0][1]
         sens_model_info = sens_estimator.get_model_info()
         spec_model_info = spec_estimator.get_model_info()
-        # Using pickle here is just a temporary measure.
-        # TODO: Transformers should be serialized properly.
+        sens_transformer_info = {
+            "mean": sens_transformer.mean_.tolist(),
+            "scale": sens_transformer.scale_.tolist(),
+            "var": sens_transformer.var_.tolist(),
+        }
+        spec_transformer_info = {
+            "mean": spec_transformer.mean_.tolist(),
+            "scale": spec_transformer.scale_.tolist(),
+            "var": spec_transformer.var_.tolist(),
+        }
+
         info = {
-                    'sens_model_info': sens_model_info,
-                    'sens_transformer': pickle.dumps(
-                        sens_transformer
-                    ).decode('latin-1'),
-                    'spec_model_info': spec_model_info,
-                    'spec_transformer': pickle.dumps(
-                        spec_transformer
-                    ).decode('latin-1'),
-                }
+            'sens_model_info': sens_model_info,
+            'sens_transformer': sens_transformer_info,
+            'spec_model_info': spec_model_info,
+            'spec_transformer': spec_transformer_info,
+        }
         return info
 
     @classmethod
@@ -454,13 +464,29 @@ class DiagnosticTestPriorModel:
             sens_model_random_state=None,
     ):
         sens_model_info = model_info['sens_model_info']
-        sens_transformer = pickle.loads(
-            model_info['sens_transformer'].encode('latin-1')
-        )
-        spec_model_info = model_info['spec_model_info']
-        spec_transformer = pickle.loads(
-            model_info['spec_transformer'].encode('latin-1')
-        )
+        sens_transformer_info = model_info["sens_transformer"]
+        if isinstance(sens_transformer_info, dict):
+            sens_transformer = StandardScaler()
+            sens_transformer.mean_ = np.asarray(sens_transformer_info["mean"])
+            sens_transformer.scale_ = np.asarray(sens_transformer_info["scale"])
+            sens_transformer.var_ = np.asarray(sens_transformer_info["var"])
+        else:
+            sens_transformer = pickle.loads(
+                model_info['sens_transformer'].encode('latin-1')
+            )
+
+        spec_model_info = model_info["spec_model_info"]
+        spec_transformer_info = model_info["spec_transformer"]
+        if isinstance(spec_transformer_info, dict):
+            spec_transformer = StandardScaler()
+            spec_transformer.mean_ = np.asarray(spec_transformer_info["mean"])
+            spec_transformer.scale_ = np.asarray(spec_transformer_info["scale"])
+            spec_transformer.var_ = np.asarray(spec_transformer_info["var"])
+        else:
+            spec_transformer = pickle.loads(
+                model_info['spec_transformer'].encode('latin-1')
+            )
+
         sens_estimator = DistilledBetaBinomialRegressor.load(
             sens_model_info,
         )
