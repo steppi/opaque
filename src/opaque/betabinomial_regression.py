@@ -24,10 +24,10 @@ class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
             mean_use_cols=None,
             disp_use_cols=None,
     ):
-        self.intercept_mean = intercept_mean
-        self.coef_mean = coef_mean
-        self.intercept_disp = intercept_disp
-        self.coef_disp = coef_disp
+        self.intercept_mean_ = intercept_mean
+        self.coef_mean_ = coef_mean
+        self.intercept_disp_ = intercept_disp
+        self.coef_disp_ = coef_disp
         self.mean_use_cols = mean_use_cols
         self.disp_use_cols = disp_use_cols
 
@@ -38,8 +38,8 @@ class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
     def _predict(self, X):
         X_mean = X if self.mean_use_cols is None else X[:, self.mean_use_cols]
         X_disp = X if self.disp_use_cols is None else X[:, self.disp_use_cols]
-        mu = special.expit(self.intercept_mean + X_mean @ self.coef_mean)
-        nu = np.exp(self.intercept_disp + X_disp @ self.coef_disp)
+        mu = special.expit(self.intercept_mean_ + X_mean @ self.coef_mean_)
+        nu = np.exp(self.intercept_disp_ + X_disp @ self.coef_disp_)
         alpha = mu * nu
         beta = (1 - mu) * nu
         return mu, alpha, beta
@@ -57,10 +57,10 @@ class DistilledBetaBinomialRegressor(BaseEstimator, RegressorMixin):
 
     def get_model_info(self):
         return {
-            "intercept_mean": float(self.intercept_mean),
-            "coef_mean": self.coef_mean.tolist(),
-            "intercept_disp": float(self.intercept_disp),
-            "coef_disp": self.coef_disp.tolist(),
+            "intercept_mean": float(self.intercept_mean_),
+            "coef_mean": self.coef_mean_.tolist(),
+            "intercept_disp": float(self.intercept_disp_),
+            "coef_disp": self.coef_disp_.tolist(),
             "mean_use_cols": self.mean_use_cols,
             "disp_use_cols": self.disp_use_cols,
         }
