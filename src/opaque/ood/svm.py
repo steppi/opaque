@@ -51,7 +51,7 @@ class LinearOneClassSVM(BaseEstimator, OutlierMixin):
             **self.kwargs,
         )
         model.fit(X)
-        return model.coef_, model.intercept_
+        return model.coef_, -model.offset_
 
     def fit(self, X, y=None):
         if self.solver == "libsvm":
