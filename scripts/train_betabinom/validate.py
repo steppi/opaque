@@ -22,6 +22,8 @@ def get_feature_array(df):
             'max_features',
             'log_num_entrez',
             'log_num_mesh',
+            'log_num_db',
+            'log_num_reader',
             'sens_neg_set',
             'mean_spec',
             'std_spec',
@@ -31,12 +33,12 @@ def get_feature_array(df):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("run_name")
+parser.add_argument("data_path")
+parser.add_argument("best_hps_path")
 args = parser.parse_args()
 
-here = os.path.dirname(os.path.realpath(__file__))
-data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
+data_path = args.data_path
 run_name = args.run_name
-
 
 # High entropy seed generated with
 # ---------------------------
@@ -46,14 +48,8 @@ run_name = args.run_name
 seed = 29574310898661272202790385091240407850
 rng = np.random.default_rng(seed)
 
-best_hps = pd.read_csv("best_hps_run7.csv", sep=",")
+best_hps = pd.read_csv(args.best_hps_path, sep=",")
 df = pd.read_csv(data_path, sep=',')
-
-# Generate log num training texts features, (smooth with +1 to avoid log 0).
-# Track separately if texts came from mesh annotations or entrez.
-df['log_num_entrez'] = np.log(df.num_entrez + 1)
-df['log_num_mesh'] = np.log(df.num_mesh + 1)
-
 
 if run_name not in OpaqueResultsManager.show_tables():
     OpaqueResultsManager.add_table(run_name)

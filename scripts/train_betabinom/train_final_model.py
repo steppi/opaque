@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import numpy as np
@@ -11,8 +12,12 @@ from opaque.betabinomial_regression import DiagnosticTestPriorModel
 from opaque.utils import AnyMethodPipeline
 
 
-here = os.path.dirname(os.path.realpath(__file__))
-data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
+parser = argparse.ArgumentParser()
+parser.add_argument("data_path")
+parser.add_argument("best_hps_path")
+args = parser.parse_args()
+
+data_path = args.data_path
 
 
 def get_feature_array(df):
@@ -23,6 +28,8 @@ def get_feature_array(df):
             'max_features',
             'log_num_entrez',
             'log_num_mesh',
+            'log_num_db',
+            'log_num_reader',
             'sens_neg_set',
             'mean_spec',
             'std_spec',
@@ -34,16 +41,11 @@ rng = np.random.default_rng(seed)
 
 df = pd.read_csv(data_path, sep=",")
 
-# Generate log num training texts features, (smooth with +1 to avoid log 0).
-# Track separately if texts came from mesh annotations or entrez.
-df['log_num_entrez'] = np.log(df.num_entrez + 1)
-df['log_num_mesh'] = np.log(df.num_mesh + 1)
-
 
 df_spec = df[df.N_inlier > 0]
 df_sens = df[df.N_outlier > 0]
 
-best_hps = pd.read_csv("best_hps_outer_2025_12_30_distilled.csv", sep=",")
+best_hps = pd.read_csv(args.best_hps_path, sep=",")
 
 prior_type, coeff_scale = best_hps[best_hps.target_type == "specificity"][
     ["prior_type", "coeff_scale"]
