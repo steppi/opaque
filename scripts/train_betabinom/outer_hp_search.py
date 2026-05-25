@@ -48,11 +48,6 @@ def get_feature_array(df):
 
 df = pd.read_csv(data_path, sep=",")
 
-# Generate log num training texts features, (smooth with +1 to avoid log 0).
-# Track separately if texts came from mesh annotations or entrez.
-df['log_num_entrez'] = np.log(df.num_entrez + 1)
-df['log_num_mesh'] = np.log(df.num_mesh + 1)
-
 outer_splits = list(
     StratifiedGroupKFold(n_splits=5).split(
         df, df.joint_strat_label, groups=df.group
