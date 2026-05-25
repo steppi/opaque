@@ -26,6 +26,8 @@ def get_feature_array(df):
             'max_features',
             'log_num_entrez',
             'log_num_mesh',
+            'log_num_db',
+            'log_num_reader',
             'sens_neg_set',
             'mean_spec',
             'std_spec',
@@ -44,14 +46,8 @@ def main(
 ):
     df = pd.read_csv(data_path, sep=',')
 
-    # Generate log num training texts features, (smooth with +1 to avoid log 0).
-    # Track separately if texts came from mesh annotations or entrez.
-    df['log_num_entrez'] = np.log(df.num_entrez + 1)
-    df['log_num_mesh'] = np.log(df.num_mesh + 1)
-
     if run_name not in OpaqueResultsManager.show_tables():
         OpaqueResultsManager.add_table(run_name)
-
 
     # We use nested cross validation. Tune hyperparameters on inner splits.
     # Test generalization error on outer splits.
@@ -60,7 +56,6 @@ def main(
             df, df.joint_strat_label, groups=df.group
         )
     )
-
     for (
             (i, (outer_train_idx, outer_test_idx)),
             prior_type,
@@ -132,6 +127,7 @@ def main(
             model.fit(
                 X_outer_train[inner_train_idx], y_outer_train[inner_train_idx]
             )
+
             model.set_params(betabinom=model.named_steps["betabinom"].distill())
 
             N = y_outer_train[inner_test_idx, 0]
@@ -163,13 +159,10 @@ def main(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("run_name")
+    parser.add_argument("data_path")
     args = parser.parse_args()
 
-    here = os.path.dirname(os.path.realpath(__file__))
-    data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
-    if not os.path.exists(data_path):
-        print("Processed dataset has not been generated. First run "
-              "make_datasplits.py.")
+    data_path = args.data_path
 
     # High entropy seed generated with snippet.
     # ---------------------------

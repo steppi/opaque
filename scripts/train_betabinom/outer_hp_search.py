@@ -17,10 +17,10 @@ from opaque.utils import AnyMethodPipeline
 
 parser = argparse.ArgumentParser()
 parser.add_argument("run_name")
+parser.add_argument("data_path")
 args = parser.parse_args()
 
-here = os.path.dirname(os.path.realpath(__file__))
-data_path = os.path.join(here, "adeft_betabinom_dataset_processed.csv")
+data_path = args.data_path
 
 pymc_seed = 138933194570754954
 run_name = args.run_name
@@ -37,6 +37,8 @@ def get_feature_array(df):
             'max_features',
             'log_num_entrez',
             'log_num_mesh',
+            'log_num_db',
+            'log_num_reader',
             'sens_neg_set',
             'mean_spec',
             'std_spec',
