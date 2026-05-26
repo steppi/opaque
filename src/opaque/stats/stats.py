@@ -58,6 +58,12 @@ def sample_prevalence_posterior(
 
     if condition is None:
         condition = 0
+    elif condition == "positive":
+        condition = 1
+    elif condition == "negative":
+        condition = -1
+    else:
+        raise ValueError("invalid value for condition")
 
     n, t = np.asarray(n), np.asarray(t)
     data_shape = np.broadcast_shapes(n.shape, t.shape)
