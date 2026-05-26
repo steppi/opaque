@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 from multiprocessing import Pool
 from opaque.results import OpaqueResultsManager
@@ -35,21 +36,21 @@ def process_job(
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.1,
-        mode="positive",
+        condition="positive",
     )
     results["ETI_95_pos"] = equal_tailed_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.05,
-        mode="positive",
+        condition="positive",
     )
     results["ETI_99_pos"] = equal_tailed_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.01,
-        mode="positive",
+        condition="positive",
     )
 
     results["ETI_90_neg"] = equal_tailed_interval(
@@ -57,21 +58,21 @@ def process_job(
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.1,
-        mode="negative",
+        condition="negative",
     )
     results["ETI_95_neg"] = equal_tailed_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.05,
-        mode="negative",
+        condition="negative",
     )
     results["ETI_99_neg"] = equal_tailed_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.01,
-        mode="negative",
+        condition="negative",
     )
 
     results["HDI_90"] = highest_density_interval(
@@ -98,21 +99,21 @@ def process_job(
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.1,
-        mode="positive",
+        condition="positive",
     )
     results["HDI_95_pos"] = highest_density_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.05,
-        mode="positive",
+        condition="positive",
     )
     results["HDI_99_pos"] = highest_density_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.01,
-        mode="positive",
+        condition="positive",
     )
 
     results["HDI_90_neg"] = highest_density_interval(
@@ -120,21 +121,21 @@ def process_job(
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.1,
-        mode="negative",
+        condition="negative",
     )
     results["HDI_95_neg"] = highest_density_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.05,
-        mode="negative",
+        condition="negative",
     )
     results["HDI_99_neg"] = highest_density_interval(
         N_inlier + N_outlier,
         K_outlier + N_inlier - K_inlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta,
         alpha=0.01,
-        mode="negative",
+        condition="negative",
     )
 
     results["prevalence"] = N_outlier / (N_outlier + N_inlier)
@@ -176,3 +177,7 @@ if __name__ == "__main__":
 
     with Pool(16) as pool:
         results = pool.starmap(process_job, cases)
+
+
+with open(args.outpath, "wb") as f:
+    pickle.dump(results, f)
