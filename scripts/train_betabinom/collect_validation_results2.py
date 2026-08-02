@@ -7,10 +7,10 @@ from opaque.stats import equal_tailed_interval, highest_density_interval
 
 
 def process_job(
-        key, N_inlier, N_outlier, K_inlier, K_outlier,
+        key, shortform, grounding, N_inlier, N_outlier, K_inlier, K_outlier,
         sens_alpha, sens_beta, spec_alpha, spec_beta
 ):
-    results = {"key": key}
+    results = {"key": key, "shortform": shortform, "grounding": grounding}
 
     results["ETI_90"] = equal_tailed_interval(
         N_inlier + N_outlier,
@@ -164,6 +164,8 @@ if __name__ == "__main__":
             cases.append(
                 [
                     key,
+                    row.shortform,
+                    row.grounding,
                     row.N_inlier,
                     row.N_outlier,
                     row.K_inlier,
