@@ -166,9 +166,7 @@ for (i, (outer_train_idx, outer_test_idx)) in enumerate(outer_splits):
 
     diag_prior_model = DiagnosticTestPriorModel(sens_model, spec_model)
 
-    df_test_joint = df_test[
-        (df_test.N_outlier > 0) & (df_test.N_inlier > 0)
-    ].copy()
+    df_test_joint = df_test.copy()
 
     X_test = get_feature_array(df_test_joint)
     shape_params = diag_prior_model.batch_predict_shape_params(X_test)
