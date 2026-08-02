@@ -62,8 +62,6 @@ def sample_prevalence_posterior(
         condition = 1
     elif condition == "negative":
         condition = -1
-    else:
-        raise ValueError("invalid value for condition")
 
     n, t = np.asarray(n), np.asarray(t)
     data_shape = np.broadcast_shapes(n.shape, t.shape)
@@ -240,7 +238,7 @@ def equal_tailed_interval(
         condition=condition
     )
     left, right = np.quantile(sample, [alpha/2, 1.0 - alpha/2])
-    return _round_interval(left, right)
+    return _round_interval(left, right, digits=2)
 
 
 def highest_density_interval(
@@ -304,7 +302,7 @@ def highest_density_interval(
         n, t, sens_a, sens_b, spec_a, spec_b, n_samples=1000, rng=rng,
         condition=condition
     )
-    return _round_interval(*_hdi_from_sample(sample, alpha=alpha))
+    return _round_interval(*_hdi_from_sample(sample, alpha=alpha), digits=2)
 
 
 class Metrics(NamedTuple):
